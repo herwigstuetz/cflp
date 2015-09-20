@@ -1,8 +1,14 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Main where
 
 import qualified Data.Vector as V
-import Data.List (find, sortBy)
+import qualified Data.Vector.Storable as VS
+import Data.List (find, sortBy, intercalate)
+import Data.Maybe
 import Control.Monad.State
+import Control.Monad.Trans.Maybe
 
 import GHC.IO.Handle
 import System.IO
@@ -40,21 +46,37 @@ main = do
 data Facility = Facility { facilityId :: Int
                          , f :: Double -- opening cost
                          , u :: Double -- capacity
+                         , y :: Double -- fraction opened
                          } deriving (Show)
+
+type Facilities = [Facility]
 
 data Client = Client { clientId :: Int
                      , d :: Double -- demand
                      } deriving (Show)
 
+type Clients = [Client]
+
 data Distance = Distance { i :: Facility
                          , j :: Client
                          , c :: Double -- cost
+                         , x :: Double -- fraction satisfied
                          } deriving (Show)
 
+type Distances = [Distance]
 
-data CFLP = CFLP [Facility] [Client] [Distance]
+data CFLP = CFLP { fs :: Facilities
+                 , cs :: Clients
+                 , ds :: Distances}
             deriving (Show)
 
+
+data LP = LP { sense :: ObjSense
+             , obj :: V.Vector Double
+             , rhs :: V.Vector Sense
+             , amat :: [(Row, Col, Double)]
+             , bnd :: V.Vector (Maybe Double, Maybe Double)
+             } deriving (Show)
 
 type IdManagement = State Int
 
@@ -67,7 +89,7 @@ generateId = do
 createFacility :: (Double, Double) -> IdManagement Facility
 createFacility (f, u) = do
   id <- generateId
-  return $ Facility id f u
+  return $ Facility id f u 0.0
 
 createClient :: Double -> IdManagement Client
 createClient d = do
@@ -80,7 +102,8 @@ createDistance facilities clients (i, j, c) =
       <$> find isFac facilities
       <*> find isClient clients
       <*> Just c
-      where isFac (Facility id _ _) = id == i
+      <*> Just 0.0
+      where isFac (Facility id _ _ _) = id == i
             isClient (Client id _) = id == j
 
 runIdManagement :: IdManagement a -> a
@@ -96,18 +119,20 @@ createDistanceFromList :: [Facility] -> [Client] -> [(Int, Int, Double)] -> Mayb
 createDistanceFromList fac clients = mapM (createDistance fac clients)
 
 testFac = 
-  createFacilitiesFromList [(1,1)]
+  createFacilitiesFromList [(1,8), (2,3)]
 
 testClient =
-  createClientsFromList [1]
+  createClientsFromList [1, 3, 7]
 
 testDist =
-  createDistanceFromList testFac testClient [(0,0,1)]--, (0,1,1.2), (0,2,1.3),
---                                             (1,0,2.1), (1,1,2.2), (1,2,2.3)]
+  createDistanceFromList testFac testClient [(0,0,1), (0,1,1.2), (0,2,1.3),
+                                             (1,0,2.1), (1,1,2.2), (1,2,2.3)]
 
 n = length testFac
 m = length testClient
 
+
+testCFLP :: Maybe CFLP
 testCFLP =
   case testDist of Nothing -> Nothing
                    Just dists -> Just $ CFLP testFac testClient dists
@@ -130,13 +155,13 @@ testCFLP =
 
 createObjFromCFLP :: CFLP -> [Double]
 createObjFromCFLP (CFLP fac clients dists) =
-  [f | (Facility _ f _) <- fac] 
+  [f | (Facility _ f _ _) <- fac] 
   
 --               ++ 
 
 createObjIndexedListFromCFLP :: CFLP -> [(Int, Int, Double)]
 createObjIndexedListFromCFLP (CFLP _ _ ds) =
-  [(i, j, d * c) | (Distance (Facility i _ _) (Client j d) c) <- ds]
+  [(i, j, d * c) | (Distance (Facility i _ _ _) (Client j d) c _) <- ds]
 
 sortObjList :: [(Int, Int, a)] -> [(Int, Int, a)]
 sortObjList = sortBy f
@@ -145,8 +170,8 @@ sortObjList = sortBy f
                                   | j1 == j2 && i1 < i2 = LT
                                   | otherwise = GT
 
-obj :: CFLP -> V.Vector Double
-obj p@(CFLP fs cs ds) = V.fromList (createObjFromCFLP p ++ map f (sortObjList $ createObjIndexedListFromCFLP p))
+createObj :: CFLP -> V.Vector Double
+createObj p@(CFLP fs cs ds) = V.fromList (createObjFromCFLP p ++ map f (sortObjList $ createObjIndexedListFromCFLP p))
   where f (_,_,d) = d
 
 -- | indices starting with 0
@@ -207,11 +232,11 @@ constraints fs cs n m = do
   c3 <- constraints3 fs cs n m
   return $ c1 ++ map (shiftRow $ Row m) c2 ++ map (shiftRow $ Row (m + n*m)) c3
 
-rhs1 n m = [L 1.0 | j <- [0..m-1]]
-rhs2 n m = [G 0.0 | i <- [0..n-1], j <- [0..m-1]]
-rhs3 n m = [G 0.0 | i <- [0..n-1]]
+rhs1 n m = [G 1.0 | j <- [0..m-1]]
+rhs2 n m = [L 0.0 | i <- [0..n-1], j <- [0..m-1]]
+rhs3 n m = [L 0.0 | i <- [0..n-1]]
 
-rhs n m = V.fromList $ rhs1 n m ++ rhs2 n m ++ rhs3 n m
+createRhs n m = V.fromList $ rhs1 n m ++ rhs2 n m ++ rhs3 n m
 
 ybnds n m = [(Just 0.0, Just 1.0) | i <- [0..n-1]]
 xbnds n m = [(Just 0.0, Nothing) | i <- [0..n-1], j <- [0..m-1]]
@@ -220,45 +245,95 @@ bnds n m = V.fromList $ ybnds n m ++ xbnds n m
 
 objsen = CPX_MAX
 
---cflpLp env "CFLP" $ \lp -> do
---  statusLp <- copyLp env lp objsen obj rhs constraints bnds
-
 test11 :: CFLP -> [(Int, Int)]
 test11 (CFLP fac clients dists) =
-  [(i,j) | (Distance (Facility i _ _) (Client j _) _) <- dists]
+  [(i,j) | (Distance (Facility i _ _ _) (Client j _) _ _) <- dists]
 
+
+fromCFLP :: CFLP -> Maybe LP
+fromCFLP cflp = let s = CPX_MIN
+                    o = createObj cflp
+                    n = length $ fs cflp
+                    m = length $ cs cflp
+                    r = createRhs n m
+                    a = constraints (fs cflp) (cs cflp) n m
+                    b = bnds n m
+                in
+                  LP s o r <$> a <*> Just b
+runLP :: LP -> CpxEnv -> CpxLp -> IO (Maybe String)
+runLP (LP sense obj rhs amat bnd) cpxEnv cpxLp = copyLp cpxEnv cpxLp sense obj rhs amat bnd
+
+showObjSense :: ObjSense -> String
+showObjSense CPX_MAX = "max"
+showObjSense CPX_MIN = "min"
+
+showObj :: V.Vector Double -> String
+showObj = show
+
+showAMat :: [(Row, Col, Double)] -> V.Vector Sense -> String
+showAMat amat rhs = intercalate "\n" [intercalate " " ([show $ a i j | j <- [0..n+n*m-1]] ++ [show $ rhs V.! i]) | i <- [0..n+n*m+m-1]]
+  where el (_, _, d) = d
+        a :: Int -> Int -> Double
+        a i j = fromMaybe 0.0 $ el <$> find (\(Row k, Col l, _) -> i == k && j == l) amat
+
+showLP (LP sense obj rhs amat bnd) = showObjSense sense
+                                     ++ showObj obj
+                                     ++ "\n"
+                                     ++ showAMat amat rhs 
+
+openFacility :: Facility -> Double -> Facility
+openFacility f y = f { y = y }
+
+--getSol :: VS.Vector a -> Facility -> a
+getSol sol f = sol VS.! facilityId f
+
+openFacilitiesCFLP :: CFLP -> CpxSolution -> CFLP
+openFacilitiesCFLP cflp sol = cflp { fs = openFacilities (fs cflp) ys
+                                   , ds = satisfyDemand (ds cflp) xs
+                                   }
+  where n = length $ fs cflp
+        ys = take n $ VS.toList (solX sol)
+        xs = drop n $ VS.toList (solX sol)
+
+openFacilities :: Facilities -> [Double] -> Facilities
+openFacilities = zipWith openFacility
+
+satisfy :: Distance -> Double -> Distance
+satisfy d x = d { x = x }
+
+satisfyDemand :: Distances -> [Double] -> Distances
+satisfyDemand = zipWith satisfy
 
 sol :: IO ()
 sol = withEnv $ \env -> do
   setIntParam env CPX_PARAM_DATACHECK cpx_ON
   setIntParam env CPX_PARAM_SCRIND cpx_ON
   withLp env "CFLP" $ \lp -> do
-    let objsen = CPX_MIN
-        r = rhs n m
-        b = bnds n m
 
-    let maybeO = obj <$> testCFLP
-        maybeCs = constraints testFac testClient n m
+    let cflp = testCFLP
+        p = cflp >>= fromCFLP
 
-    statusLp <- case maybeO
-                of Nothing -> return $ Nothing
-                   Just o -> do
-                     case maybeCs
-                       of Nothing -> return $ Nothing
-                          Just cs -> copyLp env lp objsen o r cs b
+    statusLp <- case p of
+      Nothing -> return $ Just "No valid problem"
+      Just p -> runLP p env lp
+
+    print testCFLP
     case statusLp of
       Nothing -> return ()
       Just msg -> error $ "CPXcopylp error: " ++ msg
 
-    statusOpt <- qpopt env lp
+    -- Solve problem
+    statusOpt <- lpopt env lp
     case statusOpt of
       Nothing -> return ()
-      Just msg -> error $ "CPXqpopt error: " ++ msg
+      Just msg -> error $ "CPXlpopt error: " ++ msg
       
 
+    -- Retrieve solution
     statusSol <- getSolution env lp
     case statusSol of Left msg -> error msg
                       Right sol -> do
+                        print $ openFacilitiesCFLP <$> testCFLP <*> Just sol
                         putStrLn $ "x      : " ++ show (solX sol)
                         putStrLn $ "pi'    : " ++ show (solPi sol)
                         putStrLn $ "slack  : " ++ show (solSlack sol)

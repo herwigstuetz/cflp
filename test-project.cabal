@@ -23,6 +23,7 @@ executable test-project
                      , cplex
                      , directory
                      , mtl >= 2.2.1
+                     , transformers >= 0.4.2.0
                      , vector
   -- hs-source-dirs:      
   default-language:    Haskell2010
