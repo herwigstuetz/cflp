@@ -57,17 +57,17 @@ data Client = Client { clientId :: Int
 
 type Clients = [Client]
 
-data Distance = Distance { i :: Facility
-                         , j :: Client
+data Distance = Distance { i :: Int
+                         , j :: Int
                          , c :: Double -- cost
                          , x :: Double -- fraction satisfied
                          } deriving (Show)
 
 type Distances = [Distance]
 
-data CFLP = CFLP { fs :: Facilities
-                 , cs :: Clients
-                 , ds :: Distances}
+data CFLP = CFLP { facilities :: Facilities
+                 , clients    :: Clients
+                 , distances  :: Distances}
             deriving (Show)
 
 
@@ -97,14 +97,11 @@ createClient d = do
   return $ Client id d
 
 createDistance :: [Facility] -> [Client] -> (Int, Int, Double) -> Maybe Distance
-createDistance facilities clients (i, j, c) =
-    Distance
-      <$> find isFac facilities
-      <*> find isClient clients
-      <*> Just c
-      <*> Just 0.0
-      where isFac (Facility id _ _ _) = id == i
-            isClient (Client id _) = id == j
+createDistance fs cs (i, j, c) =
+  Distance <$> (facilityId <$> findFacility fs i)
+           <*> (clientId <$> findClient cs j)
+           <*> Just c
+           <*> Just 0.0
 
 runIdManagement :: IdManagement a -> a
 runIdManagement m = evalState m 0
@@ -159,9 +156,19 @@ createObjFromCFLP (CFLP fac clients dists) =
   
 --               ++ 
 
-createObjIndexedListFromCFLP :: CFLP -> [(Int, Int, Double)]
-createObjIndexedListFromCFLP (CFLP _ _ ds) =
-  [(i, j, d * c) | (Distance (Facility i _ _ _) (Client j d) c _) <- ds]
+findClient :: Clients -> Int -> Maybe Client
+findClient cs j = find isClient cs
+  where isClient (Client id _) = id == j
+
+findFacility :: Facilities -> Int -> Maybe Facility
+findFacility fs i = find isFacility fs
+  where isFacility (Facility id _ _ _) = id == i
+
+createObjIndexedListFromCFLP :: CFLP -> Maybe [(Int, Int, Double)]
+createObjIndexedListFromCFLP cflp@(CFLP _ cs ds) =
+  sequence [seqTuple (i, j, (*) <$> demandOf j <*> Just c) | (Distance i j c _) <- ds]
+  where demandOf :: Int -> Maybe Double
+        demandOf j = d <$> findClient cs j
 
 sortObjList :: [(Int, Int, a)] -> [(Int, Int, a)]
 sortObjList = sortBy f
@@ -170,9 +177,12 @@ sortObjList = sortBy f
                                   | j1 == j2 && i1 < i2 = LT
                                   | otherwise = GT
 
-createObj :: CFLP -> V.Vector Double
-createObj p@(CFLP fs cs ds) = V.fromList (createObjFromCFLP p ++ map f (sortObjList $ createObjIndexedListFromCFLP p))
-  where f (_,_,d) = d
+createObj :: CFLP -> Maybe (V.Vector Double)
+createObj p@(CFLP fs cs ds) = do
+  let f (_,_,d) = d
+  ys <- return $ createObjFromCFLP p
+  xs <- createObjIndexedListFromCFLP p
+  return $ V.fromList $ ys ++ map f (sortObjList xs)
 
 -- | indices starting with 0
 yCol :: Int -> Int -> Int -> Int
@@ -207,8 +217,8 @@ maybeTuple :: (a, b, Maybe c) -> Maybe (a, b, c)
 maybeTuple (a, b, Just c) = Just (a, b, c)
 maybeTuple (a, b, Nothing) = Nothing
 
-seqTuple :: (Row, Col, Maybe Double) -> Maybe (Row, Col, Double)
-seqTuple (Row r, Col s, Just d) = Just (Row r, Col s, d)
+seqTuple :: (a, b, Maybe c) -> Maybe (a, b, c)
+seqTuple (a, b, Just c) = Just (a, b, c)
 seqTuple (_, _, Nothing) = Nothing
 
 constraints3y :: [Facility] -> [Client] -> Int -> Int -> Maybe [(Row, Col, Double)]
@@ -247,19 +257,19 @@ objsen = CPX_MAX
 
 test11 :: CFLP -> [(Int, Int)]
 test11 (CFLP fac clients dists) =
-  [(i,j) | (Distance (Facility i _ _ _) (Client j _) _ _) <- dists]
+  [(i,j) | (Distance i j _ _) <- dists]
 
 
 fromCFLP :: CFLP -> Maybe LP
 fromCFLP cflp = let s = CPX_MIN
                     o = createObj cflp
-                    n = length $ fs cflp
-                    m = length $ cs cflp
+                    n = length $ facilities cflp
+                    m = length $ clients cflp
                     r = createRhs n m
-                    a = constraints (fs cflp) (cs cflp) n m
+                    a = constraints (facilities cflp) (clients cflp) n m
                     b = bnds n m
                 in
-                  LP s o r <$> a <*> Just b
+                  LP s <$> o <*> Just r <*> a <*> Just b
 runLP :: LP -> CpxEnv -> CpxLp -> IO (Maybe String)
 runLP (LP sense obj rhs amat bnd) cpxEnv cpxLp = copyLp cpxEnv cpxLp sense obj rhs amat bnd
 
@@ -271,7 +281,7 @@ showObj :: V.Vector Double -> String
 showObj = show
 
 showAMat :: [(Row, Col, Double)] -> V.Vector Sense -> String
-showAMat amat rhs = intercalate "\n" [intercalate " " ([show $ a i j | j <- [0..n+n*m-1]] ++ [show $ rhs V.! i]) | i <- [0..n+n*m+m-1]]
+showAMat amat rhs = intercalate "\n" [unwords ([show $ a i j | j <- [0..n+n*m-1]] ++ [show $ rhs V.! i]) | i <- [0..n+n*m+m-1]]
   where el (_, _, d) = d
         a :: Int -> Int -> Double
         a i j = fromMaybe 0.0 $ el <$> find (\(Row k, Col l, _) -> i == k && j == l) amat
@@ -288,10 +298,10 @@ openFacility f y = f { y = y }
 getSol sol f = sol VS.! facilityId f
 
 openFacilitiesCFLP :: CFLP -> CpxSolution -> CFLP
-openFacilitiesCFLP cflp sol = cflp { fs = openFacilities (fs cflp) ys
-                                   , ds = satisfyDemand (ds cflp) xs
+openFacilitiesCFLP cflp sol = cflp { facilities = openFacilities (facilities cflp) ys
+                                   , distances = satisfyDemand (distances cflp) xs
                                    }
-  where n = length $ fs cflp
+  where n = length $ facilities cflp
         ys = take n $ VS.toList (solX sol)
         xs = drop n $ VS.toList (solX sol)
 
