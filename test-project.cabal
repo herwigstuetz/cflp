@@ -20,6 +20,7 @@ executable test-project
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9
+                     , containers >= 0.5.6.2
                      , cplex
                      , directory
                      , mtl >= 2.2.1

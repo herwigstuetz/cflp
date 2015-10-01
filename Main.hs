@@ -1,23 +1,25 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
 module Main where
 
-import qualified Data.Vector as V
-import qualified Data.Vector.Storable as VS
-import Data.List (find, sortBy, intercalate)
-import Data.Maybe
-import Control.Monad.State
-import Control.Monad.Trans.Maybe
+import           Control.Monad.State
+import           Control.Monad.Trans.Maybe
+import           Data.List                 (find, intercalate, minimumBy,
+                                            sortBy, (\\))
+import qualified Data.Map.Strict           as Map
+import           Data.Maybe
+import qualified Data.Set                  as Set
+import qualified Data.Vector               as V
+import qualified Data.Vector.Storable      as VS
 
-import GHC.IO.Handle
-import System.IO
-import System.Directory
+import           GHC.IO.Handle
+import           System.Directory
+import           System.IO
 
-import Foreign.C
+import           Foreign.C
 
-import CPLEX.Param
-import CPLEX
+import           CPLEX
+import           CPLEX.Param
 
 
 catchOutput :: IO () -> IO String
@@ -44,15 +46,15 @@ main = do
 
 
 data Facility = Facility { facilityId :: Int
-                         , f :: Double -- opening cost
-                         , u :: Double -- capacity
-                         , y :: Double -- fraction opened
+                         , f          :: Double -- opening cost
+                         , u          :: Double -- capacity
+                         , y          :: Double -- fraction opened
                          } deriving (Show)
 
 type Facilities = [Facility]
 
 data Client = Client { clientId :: Int
-                     , d :: Double -- demand
+                     , d        :: Double -- demand
                      } deriving (Show)
 
 type Clients = [Client]
@@ -72,10 +74,10 @@ data CFLP = CFLP { facilities :: Facilities
 
 
 data LP = LP { sense :: ObjSense
-             , obj :: V.Vector Double
-             , rhs :: V.Vector Sense
-             , amat :: [(Row, Col, Double)]
-             , bnd :: V.Vector (Maybe Double, Maybe Double)
+             , obj   :: V.Vector Double
+             , rhs   :: V.Vector Sense
+             , amat  :: [(Row, Col, Double)]
+             , bnd   :: V.Vector (Maybe Double, Maybe Double)
              } deriving (Show)
 
 type IdManagement = State Int
@@ -115,7 +117,7 @@ createClientsFromList list = runIdManagement $ mapM createClient list
 createDistanceFromList :: [Facility] -> [Client] -> [(Int, Int, Double)] -> Maybe [Distance]
 createDistanceFromList fac clients = mapM (createDistance fac clients)
 
-testFac = 
+testFac =
   createFacilitiesFromList [(1,8), (2,3)]
 
 testClient =
@@ -152,9 +154,9 @@ testCFLP =
 
 createObjFromCFLP :: CFLP -> [Double]
 createObjFromCFLP (CFLP fac clients dists) =
-  [f | (Facility _ f _ _) <- fac] 
-  
---               ++ 
+  [f | (Facility _ f _ _) <- fac]
+
+--               ++
 
 findClient :: Clients -> Int -> Maybe Client
 findClient cs j = find isClient cs
@@ -163,6 +165,10 @@ findClient cs j = find isClient cs
 findFacility :: Facilities -> Int -> Maybe Facility
 findFacility fs i = find isFacility fs
   where isFacility (Facility id _ _ _) = id == i
+
+findDistance :: Distances -> Int -> Int -> Maybe Distance
+findDistance ds i j = find isDistance ds
+  where isDistance (Distance from to _ _) = i == from && j == to
 
 createObjIndexedListFromCFLP :: CFLP -> Maybe [(Int, Int, Double)]
 createObjIndexedListFromCFLP cflp@(CFLP _ cs ds) =
@@ -289,7 +295,7 @@ showAMat amat rhs = intercalate "\n" [unwords ([show $ a i j | j <- [0..n+n*m-1]
 showLP (LP sense obj rhs amat bnd) = showObjSense sense
                                      ++ showObj obj
                                      ++ "\n"
-                                     ++ showAMat amat rhs 
+                                     ++ showAMat amat rhs
 
 openFacility :: Facility -> Double -> Facility
 openFacility f y = f { y = y }
@@ -314,6 +320,64 @@ satisfy d x = d { x = x }
 satisfyDemand :: Distances -> [Double] -> Distances
 satisfyDemand = zipWith satisfy
 
+
+-- Clustering
+
+data Center = Center Int [Int]
+type Cluster = [Center]
+
+-- Step C1
+initialCluster :: Cluster
+initialCluster = []
+
+initialPossibleCenters :: CFLP -> Clients
+initialPossibleCenters = clients
+
+chooseNextCluster :: Clients -> [Double] -> Client
+chooseNextCluster possibleCenters budget =
+  possibleCenters !! (snd $ minimumBy (\(a,b) (c,d) -> compare a c)
+                          $ filter (\(_, j) -> j `elem` map clientId possibleCenters)
+                          $ zip budget [0..])
+
+formCluster :: Cluster -> CFLP -> Clients -> [Double] -> Center
+formCluster cluster cflp possibleCenters budget = calculateBj cluster
+                                                              cflp
+                                                              (clientId $ chooseNextCluster possibleCenters budget)
+
+getDistanceById :: CFLP -> Int -> Int -> Maybe Double
+getDistanceById cflp i j = c <$> find (\(Distance s t _ _) -> i == s && j == t) (distances cflp)
+
+calculateBj :: Cluster -> CFLP -> Int -> Center
+calculateBj cluster cflp j = bj
+  where fs = facilities cflp
+        fj = [i | (Facility i _ _ yi) <- fs, yi > 0.0]
+        nk = concat $ map (\ (Center k nk) -> nk) cluster
+        bj = Center j [i | i <- fj
+                         , i `notElem` nk
+                         , getDistanceById cflp i j <= minimum [getDistanceById cflp i k | k <- [0..m-1]]]
+
+getXs :: Distances -> [Int] -> [Int] -> [Double]
+getXs ds is js = map x $ filter (\(Distance i j _ _) -> i `elem` is && j `elem` js) ds
+
+getPossibleCenters :: CFLP -> Cluster -> Maybe Clients
+getPossibleCenters cflp currentCluster = do
+  let unclustered = (map clientId $ clients cflp) \\ (map (\(Center j is) -> j) currentCluster)
+      bjs = map (calculateBj currentCluster cflp) unclustered
+      bjs' = zip (map (\(Center _ fs) -> fs) bjs) unclustered
+      xs = map (\(is, j) -> getXs (distances cflp) is [j]) bjs'
+      centers = filter (\(j,xs) -> sum xs >= 1.0/2.0) $ zip unclustered xs
+  sequence $ map (\(j,_) -> findClient (clients cflp) j) centers
+
+
+
+-- Step C2
+
+-- Reducing to single node
+
+-- Assign clients
+
+
+
 sol :: IO ()
 sol = withEnv $ \env -> do
   setIntParam env CPX_PARAM_DATACHECK cpx_ON
@@ -337,7 +401,7 @@ sol = withEnv $ \env -> do
     case statusOpt of
       Nothing -> return ()
       Just msg -> error $ "CPXlpopt error: " ++ msg
-      
+
 
     -- Retrieve solution
     statusSol <- getSolution env lp
@@ -361,7 +425,7 @@ cpx_ON  =  1
 cpx_OFF :: Integer
 cpx_OFF =  0
 
-  
+
 sol' :: IO ()
 sol' = withEnv $ \env -> do
   setIntParam env CPX_PARAM_SCRIND cpx_ON
@@ -403,7 +467,7 @@ sol' = withEnv $ \env -> do
     case statusOpt of
       Nothing -> return ()
       Just msg -> error $ "CPXqpopt error: " ++ msg
-      
+
     statusSol <- getSolution env lp
     case statusSol of
       Left msg -> error $ "CPXsolution error: " ++ msg
