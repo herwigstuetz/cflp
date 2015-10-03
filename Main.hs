@@ -353,14 +353,24 @@ formCluster cluster cflp possibleCenters budget =
 getDistanceById :: Distances -> FacilityId -> ClientId -> Maybe Double
 getDistanceById ds i j = c <$> find (\(Distance s t _ _) -> i == s && j == t) ds
 
+isNearer :: Double -> [Double] -> Bool
+x `isNearer` [] = True
+x `isNearer` xs = x <= minimum xs
+
+maybeToGuard :: Maybe Bool -> Bool
+maybeToGuard Nothing  = True
+maybeToGuard (Just b) = b
+
 calculateBj :: [Cluster] -> CFLP -> ClientId -> [FacilityId]
 calculateBj cluster cflp j = bj
   where fs = facilities cflp
-        fj = [i | (Facility i _ _ yi) <- fs, yi > 0.0]
+        fj = [i | (Facility i _ _ _) <- fs, let xi = head $ getXs (distances cflp) [i] [j], xi > 0.0]
         nk = concatMap (\ (Cluster k nk) -> nk) cluster
+        ks = map clusterCenter cluster
+        ds = distances cflp
         bj = [i | i <- fj
                 , i `notElem` nk
-                , getDistanceById ds i j <= minimum [getDistanceById ds i k | k <- [0..(length $ clients cflp) - 1]]]
+                , maybeToGuard $ isNearer <$> (getDistanceById ds i j) <*> sequence [getDistanceById ds i k | k <- ks]]
 
 getXs :: Distances -> [FacilityId] -> [ClientId] -> [Double]
 getXs ds is js = map x $ filter (\(Distance i j _ _) -> i `elem` is && j `elem` js) ds
