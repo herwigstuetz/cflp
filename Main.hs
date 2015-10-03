@@ -362,16 +362,6 @@ getXs ds is js = map x $ filter (\(Distance i j _ _) -> i `elem` is && j `elem` 
 
 getPossibleCenters :: CFLP -> [Cluster] -> [ClientId]
 getPossibleCenters cflp currentClusters = do
-  let unclustered = (map clientId $ clients cflp) \\ (map (\(Cluster j is) -> j) currentClusters)
-      bjs = map (calculateBj currentClusters cflp) unclustered
-      bjs' = zip bjs unclustered
-      xs = map (\(is, j) -> getXs (distances cflp) is [j]) bjs'
-      centers = filter (\(j,xs) -> sum xs >= 1.0/2.0) $ zip unclustered xs
-  map fst centers
-
-
-getPossibleCenters'' :: CFLP -> [Cluster] -> [ClientId]
-getPossibleCenters'' cflp currentClusters = do
   let unclustered = (map clientId $ clients cflp) \\ map clusterCenter currentClusters
   j <- unclustered
   let bj = calculateBj currentClusters cflp j
@@ -429,7 +419,7 @@ sol = withEnv $ \env -> do
                             return ()
                           Just cflp -> do
                             print "Possible Centers"
-                            print $ getPossibleCenters'' cflp []
+                            print $ getPossibleCenters cflp []
 
 
                         putStrLn $ "x      : " ++ show (solX sol)
