@@ -319,7 +319,11 @@ satisfy :: Distance -> Double -> Distance
 satisfy d x = d { x = x }
 
 satisfyDemand :: Distances -> [Double] -> Distances
-satisfyDemand = zipWith satisfy
+satisfyDemand ds xs = let n = maximum $ map i ds
+                          m = maximum $ map j ds
+                          findD i j = find (\(Distance s t _ _) -> i == s && j == t)
+                      in zipWith satisfy [fromJust $ findD i j ds | j <- [0..m], i <- [0..n]] xs
+
 
 
 -- Clustering
@@ -344,8 +348,8 @@ formCluster cluster cflp possibleCenters budget =
   let j = chooseNextCenter possibleCenters budget
   in Cluster j (calculateBj cluster cflp j)
 
-getDistanceById :: CFLP -> FacilityId -> ClientId -> Maybe Double
-getDistanceById cflp i j = c <$> find (\(Distance s t _ _) -> i == s && j == t) (distances cflp)
+getDistanceById :: Distances -> FacilityId -> ClientId -> Maybe Double
+getDistanceById ds i j = c <$> find (\(Distance s t _ _) -> i == s && j == t) ds
 
 calculateBj :: [Cluster] -> CFLP -> ClientId -> [FacilityId]
 calculateBj cluster cflp j = bj
@@ -354,7 +358,7 @@ calculateBj cluster cflp j = bj
         nk = concatMap (\ (Cluster k nk) -> nk) cluster
         bj = [i | i <- fj
                 , i `notElem` nk
-                , getDistanceById cflp i j <= minimum [getDistanceById cflp i k | k <- [0..(length $ clients cflp) - 1]]]
+                , getDistanceById ds i j <= minimum [getDistanceById ds i k | k <- [0..(length $ clients cflp) - 1]]]
 
 getXs :: Distances -> [FacilityId] -> [ClientId] -> [Double]
 getXs ds is js = map x $ filter (\(Distance i j _ _) -> i `elem` is && j `elem` js) ds
