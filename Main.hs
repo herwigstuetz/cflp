@@ -354,19 +354,34 @@ calculateBj cluster cflp j = bj
         nk = concatMap (\ (Cluster k nk) -> nk) cluster
         bj = [i | i <- fj
                 , i `notElem` nk
-                , getDistanceById cflp i j <= minimum [getDistanceById cflp i k | k <- [0..length $ clients cflp]]]
+                , getDistanceById cflp i j <= minimum [getDistanceById cflp i k | k <- [0..(length $ clients cflp) - 1]]]
 
 getXs :: Distances -> [FacilityId] -> [ClientId] -> [Double]
 getXs ds is js = map x $ filter (\(Distance i j _ _) -> i `elem` is && j `elem` js) ds
 
+
 getPossibleCenters :: CFLP -> [Cluster] -> [ClientId]
 getPossibleCenters cflp currentClusters = do
+  let unclustered = (map clientId $ clients cflp) \\ (map (\(Cluster j is) -> j) currentClusters)
+      bjs = map (calculateBj currentClusters cflp) unclustered
+      bjs' = zip bjs unclustered
+      xs = map (\(is, j) -> getXs (distances cflp) is [j]) bjs'
+      centers = filter (\(j,xs) -> sum xs >= 1.0/2.0) $ zip unclustered xs
+  map fst centers
+
+
+getPossibleCenters'' :: CFLP -> [Cluster] -> [ClientId]
+getPossibleCenters'' cflp currentClusters = do
   let unclustered = (map clientId $ clients cflp) \\ map clusterCenter currentClusters
   j <- unclustered
   let bj = calculateBj currentClusters cflp j
       xs = getXs (distances cflp) bj [j]
   guard $ sum xs >= 0.5
   return j
+
+
+traceMsgId :: Show a => String -> a -> a
+traceMsgId msg val = val --trace (msg ++ show val) val
 
 
 -- Step C2
@@ -413,7 +428,8 @@ sol = withEnv $ \env -> do
                             print "noopenedcflp"
                             return ()
                           Just cflp -> do
-                            print $ getPossibleCenters cflp []
+                            print "Possible Centers"
+                            print $ getPossibleCenters'' cflp []
 
 
                         putStrLn $ "x      : " ++ show (solX sol)
