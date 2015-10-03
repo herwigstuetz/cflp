@@ -333,7 +333,7 @@ satisfyDemand ds xs = let n = maximum $ map i ds
 --data Center = Center Int [Int] -- clientId [facilityId]
 data Cluster = Cluster { clusterCenter   :: ClientId
                        , clusterElements :: [FacilityId]
-                       }
+                       } deriving (Show)
 
 -- Step C1
 initialClusters :: [Cluster]
