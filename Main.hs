@@ -4,7 +4,7 @@ module Main where
 
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
-import           Data.List                 (find, intercalate, minimumBy,
+import           Data.List                 (find, intercalate, minimumBy, sort,
                                             sortBy, (\\))
 import qualified Data.Map.Strict           as Map
 import           Data.Maybe
@@ -44,8 +44,8 @@ main = do
 --  print testDist
 --  print $ createObjFromCFLP <$> testCFLP
 
-
-data Facility = Facility { facilityId :: Int
+type FacilityId = Int
+data Facility = Facility { facilityId :: FacilityId
                          , f          :: Double -- opening cost
                          , u          :: Double -- capacity
                          , y          :: Double -- fraction opened
@@ -53,14 +53,15 @@ data Facility = Facility { facilityId :: Int
 
 type Facilities = [Facility]
 
-data Client = Client { clientId :: Int
+type ClientId = Int
+data Client = Client { clientId :: ClientId
                      , d        :: Double -- demand
                      } deriving (Show)
 
 type Clients = [Client]
 
-data Distance = Distance { i :: Int
-                         , j :: Int
+data Distance = Distance { i :: FacilityId
+                         , j :: ClientId
                          , c :: Double -- cost
                          , x :: Double -- fraction satisfied
                          } deriving (Show)
@@ -323,51 +324,49 @@ satisfyDemand = zipWith satisfy
 
 -- Clustering
 
-data Center = Center Int [Int]
-type Cluster = [Center]
+--data Center = Center Int [Int] -- clientId [facilityId]
+data Cluster = Cluster { clusterCenter   :: ClientId
+                       , clusterElements :: [FacilityId]
+                       }
 
 -- Step C1
-initialCluster :: Cluster
-initialCluster = []
+initialClusters :: [Cluster]
+initialClusters = []
 
-initialPossibleCenters :: CFLP -> Clients
-initialPossibleCenters = clients
+initialPossibleCenters :: CFLP -> [ClientId]
+initialPossibleCenters = map clientId . clients
 
-chooseNextCluster :: Clients -> [Double] -> Client
-chooseNextCluster possibleCenters budget =
-  possibleCenters !! (snd $ minimumBy (\(a,b) (c,d) -> compare a c)
-                          $ filter (\(_, j) -> j `elem` map clientId possibleCenters)
-                          $ zip budget [0..])
+chooseNextCenter :: [ClientId] -> [Double] -> ClientId
+chooseNextCenter possibleCenters budget = snd $ minimum $ filter (\a -> snd a `elem` possibleCenters) $ zip budget [0..]
 
-formCluster :: Cluster -> CFLP -> Clients -> [Double] -> Center
-formCluster cluster cflp possibleCenters budget = calculateBj cluster
-                                                              cflp
-                                                              (clientId $ chooseNextCluster possibleCenters budget)
+formCluster :: [Cluster] -> CFLP -> [ClientId] -> [Double] -> Cluster
+formCluster cluster cflp possibleCenters budget =
+  let j = chooseNextCenter possibleCenters budget
+  in Cluster j (calculateBj cluster cflp j)
 
-getDistanceById :: CFLP -> Int -> Int -> Maybe Double
+getDistanceById :: CFLP -> FacilityId -> ClientId -> Maybe Double
 getDistanceById cflp i j = c <$> find (\(Distance s t _ _) -> i == s && j == t) (distances cflp)
 
-calculateBj :: Cluster -> CFLP -> Int -> Center
+calculateBj :: [Cluster] -> CFLP -> ClientId -> [FacilityId]
 calculateBj cluster cflp j = bj
   where fs = facilities cflp
         fj = [i | (Facility i _ _ yi) <- fs, yi > 0.0]
-        nk = concat $ map (\ (Center k nk) -> nk) cluster
-        bj = Center j [i | i <- fj
-                         , i `notElem` nk
-                         , getDistanceById cflp i j <= minimum [getDistanceById cflp i k | k <- [0..m-1]]]
+        nk = concatMap (\ (Cluster k nk) -> nk) cluster
+        bj = [i | i <- fj
+                , i `notElem` nk
+                , getDistanceById cflp i j <= minimum [getDistanceById cflp i k | k <- [0..length $ clients cflp]]]
 
-getXs :: Distances -> [Int] -> [Int] -> [Double]
+getXs :: Distances -> [FacilityId] -> [ClientId] -> [Double]
 getXs ds is js = map x $ filter (\(Distance i j _ _) -> i `elem` is && j `elem` js) ds
 
-getPossibleCenters :: CFLP -> Cluster -> Maybe Clients
-getPossibleCenters cflp currentCluster = do
-  let unclustered = (map clientId $ clients cflp) \\ (map (\(Center j is) -> j) currentCluster)
-      bjs = map (calculateBj currentCluster cflp) unclustered
-      bjs' = zip (map (\(Center _ fs) -> fs) bjs) unclustered
-      xs = map (\(is, j) -> getXs (distances cflp) is [j]) bjs'
-      centers = filter (\(j,xs) -> sum xs >= 1.0/2.0) $ zip unclustered xs
-  sequence $ map (\(j,_) -> findClient (clients cflp) j) centers
-
+getPossibleCenters :: CFLP -> [Cluster] -> [ClientId]
+getPossibleCenters cflp currentClusters = do
+  let unclustered = (map clientId $ clients cflp) \\ map clusterCenter currentClusters
+  j <- unclustered
+  let bj = calculateBj currentClusters cflp j
+      xs = getXs (distances cflp) bj [j]
+  guard $ sum xs >= 0.5
+  return j
 
 
 -- Step C2
@@ -407,7 +406,16 @@ sol = withEnv $ \env -> do
     statusSol <- getSolution env lp
     case statusSol of Left msg -> error msg
                       Right sol -> do
-                        print $ openFacilitiesCFLP <$> testCFLP <*> Just sol
+                        let openedCFLP = openFacilitiesCFLP <$> testCFLP <*> Just sol
+
+                        case openedCFLP of
+                          Nothing -> do
+                            print "noopenedcflp"
+                            return ()
+                          Just cflp -> do
+                            print $ getPossibleCenters cflp []
+
+
                         putStrLn $ "x      : " ++ show (solX sol)
                         putStrLn $ "pi'    : " ++ show (solPi sol)
                         putStrLn $ "slack  : " ++ show (solSlack sol)
