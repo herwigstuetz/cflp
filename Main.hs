@@ -18,6 +18,8 @@ import           System.IO
 
 import           Foreign.C
 
+import           Debug.Trace
+
 import           CPLEX
 import           CPLEX.Param
 
@@ -375,7 +377,7 @@ getPossibleCenters cflp currentClusters = do
 
 
 traceMsgId :: Show a => String -> a -> a
-traceMsgId msg val = val --trace (msg ++ show val) val
+traceMsgId msg val = trace (msg ++ show val) val
 
 
 -- Step C2
