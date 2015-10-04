@@ -463,6 +463,13 @@ sol = withEnv $ \env -> do
                           Just cflp -> do
                             print "Possible Centers"
                             print $ getPossibleCenters cflp []
+                            print $ chooseNextCenter (getPossibleCenters cflp [])
+                                                     (getBudget cflp sol)
+                            print "Cluster:"
+                            let cs = c1 cflp sol [] (getPossibleCenters cflp [])
+                            print $ cs
+                            let cs' = c2 cflp cs
+                            print $ cs'
 
 
                         putStrLn $ "x      : " ++ show (solX sol)
