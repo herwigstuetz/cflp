@@ -409,7 +409,7 @@ nearestClient cflp i = j $ minimumBy (compare `on` c) dists
 -- Assign remaining facilities to closest cluster center
 c2 :: CFLP -> [Cluster] -> [Cluster]
 c2 cflp clusters = undefined
-  where openFacilities = filter (((>) 0) . y) facilities cflp --[i | (Facility i _ _ yi) <- facilities cflp, yi > 0.0]
+  where openFacilities = [i | (Facility i _ _ yi) <- facilities cflp, yi > 0.0]
         clusteredFacilities = concatMap clusterElements clusters
         remainingFacilities = openFacilities \\ clusteredFacilities
         facilityAssignment = zip remainingFacilities $ map (nearestClient cflp) remainingFacilities
