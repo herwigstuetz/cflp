@@ -314,6 +314,10 @@ openFacilitiesCFLP cflp sol = cflp { facilities = openFacilities (facilities cfl
         ys = take n $ VS.toList (solX sol)
         xs = drop n $ VS.toList (solX sol)
 
+getBudget :: CFLP -> CpxSolution -> [Double]
+getBudget cflp sol = take n $ VS.toList (solPi sol)
+  where n = length $ clients cflp
+
 openFacilities :: Facilities -> [Double] -> Facilities
 openFacilities = zipWith openFacility
 
@@ -386,11 +390,18 @@ getPossibleCenters cflp currentClusters = do
   return j
 
 
-traceMsgId :: Show a => String -> a -> a
-traceMsgId msg val = trace (msg ++ show val) val
+-- While there are possible center, form cluster around the center
+c1 :: CFLP -> CpxSolution -> [Cluster] -> [ClientId] -> [Cluster]
+c1 cflp sol c [] = traceMsgId "c1 []: " c
+c1 cflp sol c s  = (traceMsgId "c1   : " $ formCluster c cflp s (getBudget cflp sol)) : c
 
 
 -- Step C2
+
+
+traceMsgId :: Show a => String -> a -> a
+traceMsgId msg val = trace (msg ++ show val) val
+
 
 -- Reducing to single node
 
