@@ -4,6 +4,7 @@ module Main where
 
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
+import           Data.Function
 import           Data.List                 (find, intercalate, minimumBy, sort,
                                             sortBy, (\\))
 import qualified Data.Map.Strict           as Map
@@ -11,7 +12,6 @@ import           Data.Maybe
 import qualified Data.Set                  as Set
 import qualified Data.Vector               as V
 import qualified Data.Vector.Storable      as VS
-
 import           GHC.IO.Handle
 import           System.Directory
 import           System.IO
@@ -397,6 +397,22 @@ c1 cflp sol c s  = (traceMsgId "c1   : " $ formCluster c cflp s (getBudget cflp 
 
 
 -- Step C2
+
+facilityDistances :: CFLP -> FacilityId -> Distances
+facilityDistances cflp i = filter (\ (Distance r s _ _) -> i == r) (distances cflp)
+
+nearestClient :: CFLP -> FacilityId -> ClientId
+nearestClient cflp i = j $ minimumBy (compare `on` c) dists
+  where dists = facilityDistances cflp i
+
+
+-- Assign remaining facilities to closest cluster center
+c2 :: CFLP -> [Cluster] -> [Cluster]
+c2 cflp clusters = undefined
+  where openFacilities = filter (((>) 0) . y) facilities cflp --[i | (Facility i _ _ yi) <- facilities cflp, yi > 0.0]
+        clusteredFacilities = concatMap clusterElements clusters
+        remainingFacilities = openFacilities \\ clusteredFacilities
+        facilityAssignment = zip remainingFacilities $ map (nearestClient cflp) remainingFacilities
 
 
 traceMsgId :: Show a => String -> a -> a
