@@ -478,6 +478,7 @@ sol = withEnv $ \env -> do
                             let cs = c1 cflp sol [] (getPossibleCenters cflp [])
                             print $ cs
                             let cs' = c2 cflp cs
+                            print "Updated Cluster:"
                             print $ cs'
 
 
