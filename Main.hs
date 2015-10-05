@@ -452,6 +452,7 @@ updateSNFacility f x = f { snTotalDemand = x }
 updateSNCFLP :: SNCFLP -> [Double] -> SNCFLP
 updateSNCFLP (SNCFLP fs d) vs = SNCFLP (zipWith updateSNFacility fs vs) d
 
+-- TODO: Test if the right values are used (vs = zipWith (/) ... us) vs. (vs = zipWith (/) ... ws) etc.
 solveSNCFLP :: SNCFLP -> SNCFLP
 solveSNCFLP sncflp = updateSNCFLP sncflp vs'
   where fs = map snOpeningCost $ snFacilities sncflp
