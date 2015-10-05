@@ -406,14 +406,13 @@ nearestClient cflp i = j $ minimumBy (compare `on` c) dists
   where dists = facilityDistances cflp i
 
 
-updateCluster' :: (FacilityId, ClientId) -> [Cluster] -> [Cluster]
-updateCluster' (i, j) [] = [Cluster j [i]]
-updateCluster' (i, j) (Cluster k fs : cs) | j == k    = Cluster j (i : fs) : cs
-                                          | otherwise = Cluster k fs : updateCluster' (i, j) cs
+updateCluster' ::  [Cluster] -> (FacilityId, ClientId) -> [Cluster]
+updateCluster' [] (i, j)                              = [Cluster j [i]]
+updateCluster' (Cluster k fs : cs) (i, j) | j == k    = Cluster j (i : fs) : cs
+                                          | otherwise = Cluster k fs : updateCluster' cs (i, j)
 
 updateCluster :: [(FacilityId, ClientId)] -> [Cluster] -> [Cluster]
-updateCluster [] cs     = cs
-updateCluster (a:as) cs = updateCluster as (updateCluster' a cs)
+updateCluster as cs = foldl updateCluster' cs as
 
 -- Assign remaining facilities to closest cluster center
 c2 :: CFLP -> [Cluster] -> [Cluster]
