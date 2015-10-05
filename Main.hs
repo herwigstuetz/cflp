@@ -455,6 +455,7 @@ updateSNCFLP (SNCFLP fs d) vs = SNCFLP (zipWith updateSNFacility fs vs) d
 -- TODO: Test if the right values are used (vs = zipWith (/) ... us) vs. (vs = zipWith (/) ... ws) etc.
 solveSNCFLP :: SNCFLP -> SNCFLP
 solveSNCFLP sncflp = updateSNCFLP sncflp vs'
+--  where (fs, us, cs) = unzip3 $ map (\ f -> (snOpeningCost f, snCapacity f, snDistance f)) $ snFacilities sncflp
   where fs = map snOpeningCost $ snFacilities sncflp
         us = map snCapacity $ snFacilities sncflp
         cs = map snDistance $ snFacilities sncflp
