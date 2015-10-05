@@ -429,6 +429,45 @@ traceMsgId msg val = trace (msg ++ show val) val
 
 -- Reducing to single node
 
+type SNFacilityId = Int
+
+data SNFacility = SNFacility { snFacilityId  :: SNFacilityId
+                             , snOpeningCost :: Double
+                             , snCapacity    :: Double
+                             , snDistance    :: Double
+                             , snTotalDemand :: Double
+                             } deriving (Show)
+
+data SNCFLP = SNCFLP { snFacilities :: [SNFacility]
+                     , snDemand     :: Double
+                     } deriving (Show)
+
+toSNCFLP :: CFLP -> SNCFLP
+toSNCFLP cflp = undefined
+  where totalDemand = undefined
+
+updateSNFacility :: SNFacility -> Double -> SNFacility
+updateSNFacility f x = f { snTotalDemand = x }
+
+updateSNCFLP :: SNCFLP -> [Double] -> SNCFLP
+updateSNCFLP (SNCFLP fs d) vs = SNCFLP (zipWith updateSNFacility fs vs) d
+
+solveSNCFLP :: SNCFLP -> SNCFLP
+solveSNCFLP sncflp = updateSNCFLP sncflp vs'
+  where fs = map snOpeningCost $ snFacilities sncflp
+        us = map snCapacity $ snFacilities sncflp
+        cs = map snDistance $ snFacilities sncflp
+        ws = zipWith3 (\ f u c -> f/u + c) fs us cs
+        (order, ws') = unzip $ sortBy (compare `on` snd) $ zip [1..] ws
+        vs = zipWith (/) (greedySolve ws $ snDemand sncflp) us
+        (order', vs') = unzip $ sortBy (compare `on` fst) $ zip order vs
+
+greedySolve :: [Double] -> Double -> [Double]
+greedySolve []       d = []
+greedySolve vs       0 = replicate (length vs) 0.0
+greedySolve (v : vs) d | d < v  = d : greedySolve vs 0.0
+                       | d >= v = v : greedySolve vs (d - v)
+
 -- Assign clients
 
 
