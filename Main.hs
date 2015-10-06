@@ -6,7 +6,7 @@ import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Function
 import           Data.List                 (find, intercalate, minimumBy, sort,
-                                            sortBy, (\\))
+                                            sortBy, zipWith5, (\\))
 import qualified Data.Map.Strict           as Map
 import           Data.Maybe
 import qualified Data.Set                  as Set
@@ -435,19 +435,29 @@ data SNFacility = SNFacility { snFacilityId  :: SNFacilityId
                              , snOpeningCost :: Double
                              , snCapacity    :: Double
                              , snDistance    :: Double
-                             , snTotalDemand :: Double
+                             , snDemand      :: Double
                              } deriving (Show)
 
-data SNCFLP = SNCFLP { snFacilities :: [SNFacility]
-                     , snDemand     :: Double
+data SNCFLP = SNCFLP { snFacilities  :: [SNFacility]
+                     , snTotalDemand :: Double
                      } deriving (Show)
 
-toSNCFLP :: CFLP -> SNCFLP
-toSNCFLP cflp = undefined
-  where totalDemand = undefined
+clusterToSNCFLP :: CFLP -> Cluster -> (ClientId, SNCFLP)
+clusterToSNCFLP cflp (Cluster k nk) = (k, sncflp)
+  where fs = catMaybes $ map (findFacility (facilities cflp)) nk
+        cls = map clientId (clients cflp)
+        ds = distances cflp
+        lk = filter (\ i -> y i < 1.0) fs
+        snfids = map facilityId lk
+        snocs  = map f lk
+        sncs   = map u lk
+        snds   = catMaybes $ map (\ i -> getDistanceById ds i k) snfids
+        totalDemand = sum $ getXs ds snfids cls
+        snfs = zipWith5 SNFacility snfids snocs sncs snds [0.0..]
+        sncflp = SNCFLP snfs totalDemand
 
 updateSNFacility :: SNFacility -> Double -> SNFacility
-updateSNFacility f x = f { snTotalDemand = x }
+updateSNFacility f x = f { snDemand = x }
 
 updateSNCFLP :: SNCFLP -> [Double] -> SNCFLP
 updateSNCFLP (SNCFLP fs d) vs = SNCFLP (zipWith updateSNFacility fs vs) d
@@ -461,7 +471,7 @@ solveSNCFLP sncflp = updateSNCFLP sncflp vs'
         cs = map snDistance $ snFacilities sncflp
         ws = zipWith3 (\ f u c -> f/u + c) fs us cs
         (order, ws') = unzip $ sortBy (compare `on` snd) $ zip [1..] ws
-        vs = zipWith (/) (greedySolve ws $ snDemand sncflp) us
+        vs = zipWith (/) (greedySolve ws $ snTotalDemand sncflp) us
         (order', vs') = unzip $ sortBy (compare `on` fst) $ zip order vs
 
 greedySolve :: [Double] -> Double -> [Double]
@@ -520,7 +530,9 @@ sol = withEnv $ \env -> do
                             let cs' = c2 cflp cs
                             print "Updated Cluster:"
                             print $ cs'
-
+                            let sncflps = map (clusterToSNCFLP cflp) cs'
+                            print $ sncflps
+                            print $ map (solveSNCFLP . snd) sncflps
 
                         putStrLn $ "x      : " ++ show (solX sol)
                         putStrLn $ "pi'    : " ++ show (solPi sol)
