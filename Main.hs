@@ -540,7 +540,6 @@ sol = withEnv $ \env -> do
       Nothing -> return $ Just "No valid problem"
       Just p -> runLP p env lp
 
-    print testCFLP
     case statusLp of
       Nothing -> return ()
       Just msg -> error $ "CPXcopylp error: " ++ msg
@@ -556,26 +555,28 @@ sol = withEnv $ \env -> do
     statusSol <- getSolution env lp
     case statusSol of Left msg -> error msg
                       Right sol -> do
-                        let openedCFLP = openFacilitiesCFLP <$> testCFLP <*> Just sol
+                        let openedCFLP = openFacilitiesCFLP cflp sol
 
-                        case openedCFLP of
-                          Nothing -> do
-                            print "noopenedcflp"
-                            return ()
-                          Just cflp -> do
-                            print "Possible Centers"
-                            print $ getPossibleCenters cflp []
-                            print $ chooseNextCenter (getPossibleCenters cflp [])
+--                        case openedCFLP of
+--                          Nothing -> do
+--                            print "noopenedcflp"
+--                            return ()
+--                          Just cflp -> do
+                        let cflp = openedCFLP
+                        print "Possible Centers"
+                        print $ getPossibleCenters cflp []
+                        print $ chooseNextCenter (getPossibleCenters cflp [])
                                                      (getBudget cflp sol)
-                            print "Cluster:"
-                            let cs = c1 cflp sol [] (getPossibleCenters cflp [])
-                            print $ cs
-                            let cs' = c2 cflp cs
-                            print "Updated Cluster:"
-                            print $ cs'
-                            let sncflps = map (clusterToSNCFLP cflp) cs'
-                            print $ sncflps
-                            print $ map (solveSNCFLP . snd) sncflps
+                        print "Cluster:"
+                        let cs = c1 cflp sol [] (getPossibleCenters cflp [])
+                        print $ cs
+                        let cs' = c2 cflp cs
+                        print "Updated Cluster:"
+                        print $ cs'
+                        let sncflps = map (clusterToSNCFLP cflp) cs'
+                        print $ sncflps
+                        print "Solved SNCFLPs"
+                        print $ map (solveSNCFLP . snd) sncflps
 
                         putStrLn $ "x      : " ++ show (solX sol)
                         putStrLn $ "pi'    : " ++ show (solPi sol)
