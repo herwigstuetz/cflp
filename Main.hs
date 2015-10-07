@@ -149,7 +149,7 @@ randomFacilities n =
      let f = take n (randomRs range g)
      g <- newStdGen
      let u = take n (randomRs range g) -- replicateM n (randomIO :: IO Double)
-     return $ zipWith4 Facility [0..] f u [0.0, 0.0..]
+     return $ zipWith4 Facility [0,1..] f u [0.0, 0.0..]
 
 randomClients :: Int -> IO Clients
 randomClients m = do
@@ -385,7 +385,7 @@ initialPossibleCenters :: CFLP -> [ClientId]
 initialPossibleCenters = map clientId . clients
 
 chooseNextCenter :: [ClientId] -> [Double] -> ClientId
-chooseNextCenter possibleCenters budget = snd $ minimum $ filter (\a -> snd a `elem` possibleCenters) $ zip budget [0..]
+chooseNextCenter possibleCenters budget = snd $ minimum $ filter (\a -> snd a `elem` possibleCenters) $ zip budget [0,1..]
 
 formCluster :: [Cluster] -> CFLP -> [ClientId] -> [Double] -> Cluster
 formCluster cluster cflp possibleCenters budget =
@@ -491,7 +491,7 @@ clusterToSNCFLP cflp (Cluster k nk) = (k, sncflp)
         sncs   = map u lk
         snds   = catMaybes $ map (\ i -> getDistanceById ds i k) snfids
         totalDemand = sum $ getXs ds snfids cls
-        snfs = zipWith5 SNFacility snfids snocs sncs snds [0.0..]
+        snfs = zipWith5 SNFacility snfids snocs sncs snds [0.0,0.0..]
         sncflp = SNCFLP snfs totalDemand
 
 updateSNFacility :: SNFacility -> Double -> SNFacility
