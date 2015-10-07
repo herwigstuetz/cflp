@@ -6,7 +6,8 @@ import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Function
 import           Data.List                 (find, intercalate, minimumBy, sort,
-                                            sortBy, zipWith5, (\\))
+                                            sortBy, splitAt, zipWith4, zipWith5,
+                                            (\\))
 import qualified Data.Map.Strict           as Map
 import           Data.Maybe
 import qualified Data.Set                  as Set
@@ -17,6 +18,7 @@ import           System.Directory
 import           System.IO
 
 import           Foreign.C
+import           System.Random
 
 import           Debug.Trace
 
@@ -138,6 +140,42 @@ testCFLP :: Maybe CFLP
 testCFLP =
   case testDist of Nothing -> Nothing
                    Just dists -> Just $ CFLP testFac testClient dists
+
+
+randomFacilities :: Int -> IO Facilities
+randomFacilities n =
+  do let range = (0.0, 100.0)
+     g <- newStdGen
+     let f = take n (randomRs range g)
+     g <- newStdGen
+     let u = take n (randomRs range g) -- replicateM n (randomIO :: IO Double)
+     return $ zipWith4 Facility [0..] f u [0.0, 0.0..]
+
+randomClients :: Int -> IO Clients
+randomClients m = do
+  d <- replicateM m (randomIO :: IO Double)
+  return $ zipWith Client [0..] d
+
+
+randomDistances :: Int -> Int -> IO Distances
+randomDistances n m =
+  do let range = (0.0, 100.0)
+     g <- newStdGen
+     let f = zip [0,1..] $ take n $ uncurry zip $ splitAt n (randomRs range g)
+     g <- newStdGen
+     let c = zip [0,1..] $ take m $ uncurry zip $ splitAt m (randomRs range g)
+     print f
+     print c
+     return [ Distance i j (sqrt ((cx-fx)**2 + (cy-fy)**2)) 0.0 | (i, (fx,fy)) <- f
+                                                                , (j, (cx,cy)) <- c]
+
+randomCFLP :: Int -> Int -> IO CFLP
+randomCFLP n m =
+  do fs <- randomFacilities n
+     cs <- randomClients m
+     ds <- randomDistances n m
+     return $ CFLP fs cs ds
+
 
 -- copyLp ::
 --   CpxEnv
@@ -490,8 +528,13 @@ sol = withEnv $ \env -> do
   setIntParam env CPX_PARAM_SCRIND cpx_ON
   withLp env "CFLP" $ \lp -> do
 
-    let cflp = testCFLP
-        p = cflp >>= fromCFLP
+    cflp <- randomCFLP 10 10
+    let p = fromCFLP cflp
+--    let cflp = testCFLP
+--    let p = cflp >>= fromCFLP
+
+    print cflp
+    print p
 
     statusLp <- case p of
       Nothing -> return $ Just "No valid problem"
