@@ -714,7 +714,7 @@ sol cflp = withEnv $ \env -> do
                         let cs' = c2 cflp cs
                         print "Updated Cluster:"
                         printClusters cs'
-                        let sncflps = map (clusterToSNCFLP cflp) cs'
+                        let sncflps = catMaybes $ map (clusterToSNCFLP cflp) cs'
                         print $ sncflps
                         print "Solved SNCFLPs"
                         print $ map (solveSNCFLP . snd) sncflps
