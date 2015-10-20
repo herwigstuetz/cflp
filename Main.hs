@@ -725,6 +725,8 @@ sol cflp = withEnv $ \env -> do
                         let sncflps' = map (solveSNCFLP . snd) $ sncflps
                         print $ sncflps'
 
+                        print "Open Facilities"
+                        print $ map (getOpenedFacilities cflp) $ (map snd sncflps) ++ sncflps'
 
 
 
