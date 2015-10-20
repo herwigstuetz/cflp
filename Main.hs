@@ -5,9 +5,9 @@ module Main where
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Function
-import           Data.List                 (find, intercalate, minimumBy, sort,
-                                            sortBy, splitAt, zipWith4, zipWith5,
-                                            (\\))
+import           Data.List                 (find, intercalate, maximumBy,
+                                            minimumBy, sort, sortBy, splitAt,
+                                            zipWith4, zipWith5, (\\))
 import qualified Data.Map.Strict           as Map
 import           Data.Maybe
 import qualified Data.Set                  as Set
@@ -16,6 +16,7 @@ import qualified Data.Vector.Storable      as VS
 import           GHC.IO.Handle
 import           System.Directory
 import           System.IO
+import           Text.Printf
 
 import           Foreign.C
 import           System.Random
@@ -78,12 +79,13 @@ data CFLP = CFLP { facilities :: Facilities
             deriving (Show)
 
 
-data LP = LP { sense :: ObjSense
-             , obj   :: V.Vector Double
-             , rhs   :: V.Vector Sense
-             , amat  :: [(Row, Col, Double)]
-             , bnd   :: V.Vector (Maybe Double, Maybe Double)
-             } deriving (Show)
+data MIP = MIP { sense  :: ObjSense
+               , obj    :: V.Vector Double
+               , rhs    :: V.Vector Sense
+               , amat   :: [(Row, Col, Double)]
+               , bnd    :: V.Vector (Maybe Double, Maybe Double)
+               , ctypes :: V.Vector Type
+               } deriving (Show)
 
 type IdManagement = State Int
 
@@ -307,7 +309,7 @@ test11 (CFLP fac clients dists) =
   [(i,j) | (Distance i j _ _) <- dists]
 
 
-fromCFLP :: CFLP -> Maybe LP
+fromCFLP :: CFLP -> Maybe MIP
 fromCFLP cflp = let s = CPX_MIN
                     o = createObj cflp
                     n = length $ facilities cflp
@@ -315,10 +317,17 @@ fromCFLP cflp = let s = CPX_MIN
                     r = createRhs n m
                     a = constraints (facilities cflp) (clients cflp) n m
                     b = bnds n m
+                    t = varTypes n m
                 in
-                  LP s <$> o <*> Just r <*> a <*> Just b
-runLP :: LP -> CpxEnv -> CpxLp -> IO (Maybe String)
-runLP (LP sense obj rhs amat bnd) cpxEnv cpxLp = copyLp cpxEnv cpxLp sense obj rhs amat bnd
+                  MIP s <$> o <*> Just r <*> a <*> Just b <*> Just t
+
+runLP :: MIP -> CpxEnv -> CpxLp -> IO (Maybe String)
+runLP (MIP sense obj rhs amat bnd _) cpxEnv cpxLp = copyLp cpxEnv cpxLp sense obj rhs amat bnd
+
+runMIP :: MIP -> CpxEnv -> CpxLp -> IO (Maybe String)
+runMIP (MIP sense obj rhs amat bnd ctypes) cpxEnv cpxLp = do
+  copyMip cpxEnv cpxLp sense obj rhs amat bnd ctypes
+
 
 showObjSense :: ObjSense -> String
 showObjSense CPX_MAX = "max"
@@ -333,10 +342,10 @@ showAMat amat rhs = intercalate "\n" [unwords ([show $ a i j | j <- [0..n+n*m-1]
         a :: Int -> Int -> Double
         a i j = fromMaybe 0.0 $ el <$> find (\(Row k, Col l, _) -> i == k && j == l) amat
 
-showLP (LP sense obj rhs amat bnd) = showObjSense sense
-                                     ++ showObj obj
-                                     ++ "\n"
-                                     ++ showAMat amat rhs
+showLP (MIP sense obj rhs amat bnd _) = showObjSense sense
+                                        ++ showObj obj
+                                        ++ "\n"
+                                        ++ showAMat amat rhs
 
 openFacility :: Facility -> Double -> Facility
 openFacility f y = f { y = y }
