@@ -566,18 +566,22 @@ showSnFacilities fs = "i: " ++ (unwords $ map (printf "%d") $ map snFacilityId f
                       ++ showFormat "x: " snDemand fs
 
 
-clusterToSNCFLP :: CFLP -> Cluster -> (ClientId, SNCFLP)
-clusterToSNCFLP cflp (Cluster k nk) = (k, sncflp)
+clusterToSNCFLP :: CFLP -> Cluster -> Maybe (ClientId, SNCFLP)
+clusterToSNCFLP cflp (Cluster k nk) = if null snfs then Nothing
+                                      else Just (k, sncflp)
   where fs = catMaybes $ map (findFacility (facilities cflp)) nk
-        cls = map clientId (clients cflp)
+        cs = map clientId (clients cflp)
         ds = distances cflp
         lk = filter (\ i -> y i < 1.0) fs
+
         snfids = map facilityId lk
         snocs  = map f lk
         sncs   = map u lk
         snds   = catMaybes $ map (\ i -> getDistanceById ds i k) snfids
-        totalDemand = sum $ getXs ds snfids cls
-        snfs = zipWith5 SNFacility snfids snocs sncs snds [0.0,0.0..]
+
+        totalDemand = sum $ getXs ds snfids cs
+        snfs        = zipWith5 SNFacility snfids snocs sncs snds [0.0,0.0..]
+
         sncflp = SNCFLP snfs totalDemand
 
 updateSNFacility :: SNFacility -> Double -> SNFacility
