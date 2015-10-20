@@ -42,7 +42,12 @@ catchOutput f = do
 
 main :: IO ()
 main = do
-  sol >>= print
+  cflp <- randomCFLP 4 4
+
+  if not $ isFeasible cflp
+    then main
+    else do solMip cflp-- >>= print
+            sol cflp-- >>= print
 --  sol' >>= print
 --  print testFac
 --  print testClient
@@ -76,7 +81,6 @@ type Distances = [Distance]
 data CFLP = CFLP { facilities :: Facilities
                  , clients    :: Clients
                  , distances  :: Distances}
-            deriving (Show)
 
 
 data MIP = MIP { sense  :: ObjSense
@@ -86,6 +90,54 @@ data MIP = MIP { sense  :: ObjSense
                , bnd    :: V.Vector (Maybe Double, Maybe Double)
                , ctypes :: V.Vector Type
                } deriving (Show)
+
+showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f") $ map selector list)
+
+showOpeningCosts :: Facilities -> String
+showOpeningCosts fs = showFormat "f_i: " f fs
+
+showCapacities   :: Facilities -> String
+showCapacities   fs = showFormat "u_i: " u fs
+
+showFractionOpen :: Facilities -> String
+showFractionOpen fs = showFormat "y_i: " y fs
+
+showFacilities fs = (showOpeningCosts fs) ++ "\n" ++
+                    (showCapacities fs) ++ "\n" ++
+                    (showFractionOpen fs)
+
+showDemands :: Clients -> String
+showDemands cs = showFormat "d_j: " d cs
+
+showClients cs = showDemands cs
+
+showCosts :: Distances -> String
+showCosts ds = showFormat ("f_" ++ show (i (ds !! 0)) ++ ": ") c ds
+
+showFlow :: Distances -> String
+showFlow ds = showFormat ("f_" ++ show (i (ds !! 0)) ++ ": ") x ds
+
+distancesFromFacility ds i' = sortBy (compare `on` j) $ [distance | distance <- ds, i distance == i']
+distancesToClient ds j' = sortBy (compare `on` i) $ [distance | distance <- ds, j distance == j']
+
+showDistancesElement :: (Distances -> String) -> Distances -> String
+showDistancesElement selector ds = ("    " ++ (unwords $ map (printf "  c_%d") $ take m ([0,1..] :: [Int])))
+                   ++ "\n" ++
+                   (unlines $ map selector [distancesFromFacility ds i | i <- [0..n-1]])
+  where
+    n = (maximum $ map i ds) + 1
+    m = (maximum $ map j ds) + 1
+
+showDistances ds = (showDistancesElement showCosts ds)
+                   ++ "\n" ++
+                   (showDistancesElement showFlow ds)
+
+showCFLP cflp = (showFacilities $ facilities cflp) ++ "\n\n"
+                ++ (showClients $ clients cflp) ++ "\n\n"
+                ++ (showDistances $ distances cflp)
+
+instance Show CFLP where
+  show = showCFLP
 
 type IdManagement = State Int
 
@@ -124,6 +176,9 @@ createClientsFromList list = runIdManagement $ mapM createClient list
 createDistanceFromList :: [Facility] -> [Client] -> [(Int, Int, Double)] -> Maybe [Distance]
 createDistanceFromList fac clients = mapM (createDistance fac clients)
 
+isFeasible :: CFLP -> Bool
+isFeasible (CFLP fs cs _) = (sum $ map u fs) >= (sum $ map d cs)
+
 testFac =
   createFacilitiesFromList [(1,8), (2,3)]
 
@@ -148,14 +203,16 @@ randomFacilities :: Int -> IO Facilities
 randomFacilities n =
   do let range = (0.0, 100.0)
      g <- newStdGen
+     h <- newStdGen
      let f = take n (randomRs range g)
-     g <- newStdGen
-     let u = take n (randomRs range g) -- replicateM n (randomIO :: IO Double)
+     let u = take n (randomRs range h)
      return $ zipWith4 Facility [0,1..] f u [0.0, 0.0..]
 
 randomClients :: Int -> IO Clients
 randomClients m = do
-  d <- replicateM m (randomIO :: IO Double)
+  let range = (0.0, 100.0)
+  g <- newStdGen
+  let d = take m $ randomRs range g
   return $ zipWith Client [0..] d
 
 
@@ -163,11 +220,9 @@ randomDistances :: Int -> Int -> IO Distances
 randomDistances n m =
   do let range = (0.0, 100.0)
      g <- newStdGen
+     h <- newStdGen
      let f = zip [0,1..] $ take n $ uncurry zip $ splitAt n (randomRs range g)
-     g <- newStdGen
-     let c = zip [0,1..] $ take m $ uncurry zip $ splitAt m (randomRs range g)
-     print f
-     print c
+     let c = zip [0,1..] $ take m $ uncurry zip $ splitAt m (randomRs range h)
      return [ Distance i j (sqrt ((cx-fx)**2 + (cy-fy)**2)) 0.0 | (i, (fx,fy)) <- f
                                                                 , (j, (cx,cy)) <- c]
 
@@ -300,8 +355,12 @@ createRhs n m = V.fromList $ rhs1 n m ++ rhs2 n m ++ rhs3 n m
 ybnds n m = [(Just 0.0, Just 1.0) | i <- [0..n-1]]
 xbnds n m = [(Just 0.0, Nothing) | i <- [0..n-1], j <- [0..m-1]]
 
+bnds :: Int -> Int -> V.Vector (Maybe Double, Maybe Double)
 bnds n m = V.fromList $ ybnds n m ++ xbnds n m
 
+varTypes :: Int -> Int -> V.Vector Type
+varTypes n m = V.fromList $ take (length $ ybnds n m) (repeat CPX_BINARY)
+               ++ take (length $ xbnds n m) (repeat CPX_CONTINUOUS)
 objsen = CPX_MAX
 
 test11 :: CFLP -> [(Int, Int)]
@@ -384,9 +443,16 @@ satisfyDemand ds xs = let n = maximum $ map i ds
 --data Center = Center Int [Int] -- clientId [facilityId]
 data Cluster = Cluster { clusterCenter   :: ClientId
                        , clusterElements :: [FacilityId]
-                       } deriving (Show)
+                       }
+
+instance Show Cluster where
+  show (Cluster c es) = (show c) ++ ": " ++ (unwords $ map show es)
 
 -- Step C1
+
+showClusters cs = unlines $ map show $ sortBy (compare `on` clusterCenter) cs
+printClusters cs = putStrLn $ showClusters cs
+
 initialClusters :: [Cluster]
 initialClusters = []
 
@@ -487,7 +553,18 @@ data SNFacility = SNFacility { snFacilityId  :: SNFacilityId
 
 data SNCFLP = SNCFLP { snFacilities  :: [SNFacility]
                      , snTotalDemand :: Double
-                     } deriving (Show)
+                     }
+
+instance Show SNCFLP where
+  show (SNCFLP fs d) = "D: " ++ show d ++ "\n" ++ showSnFacilities fs
+
+showSnFacilities :: [SNFacility] -> String
+showSnFacilities fs = "i: " ++ (unwords $ map (printf "%d") $ map snFacilityId fs) ++ "\n"
+                      ++ showFormat "f: " snOpeningCost fs ++ "\n"
+                      ++ showFormat "u: " snCapacity fs ++ "\n"
+                      ++ showFormat "c: " snDistance fs ++ "\n"
+                      ++ showFormat "x: " snDemand fs
+
 
 clusterToSNCFLP :: CFLP -> Cluster -> (ClientId, SNCFLP)
 clusterToSNCFLP cflp (Cluster k nk) = (k, sncflp)
@@ -531,19 +608,62 @@ greedySolve (v : vs) d | d < v  = d : greedySolve vs 0.0
 
 
 
-sol :: IO ()
-sol = withEnv $ \env -> do
+solMip :: CFLP -> IO ()
+solMip cflp = withEnv $ \env -> do
   setIntParam env CPX_PARAM_DATACHECK cpx_ON
   setIntParam env CPX_PARAM_SCRIND cpx_ON
   withLp env "CFLP" $ \lp -> do
 
-    cflp <- randomCFLP 10 10
+--    cflp <- randomCFLP 10 10
     let p = fromCFLP cflp
 --    let cflp = testCFLP
 --    let p = cflp >>= fromCFLP
 
     print cflp
-    print p
+--    print p
+
+    statusLp <- case p of
+      Nothing -> return $ Just "No valid problem"
+      Just p -> runMIP p env lp
+
+    case statusLp of
+      Nothing -> return ()
+      Just msg -> error $ "CPXcopylp error: " ++ msg
+
+    -- Solve problem
+
+    statusOpt <- mipopt env lp
+    case statusOpt of
+      Nothing -> return ()
+      Just msg -> error $ "CPXlpopt error: " ++ msg
+
+
+    -- Retrieve solution
+    statusSol <- getMIPSolution env lp
+    case statusSol of Left msg -> error msg
+                      Right sol -> do
+                        let openedCFLP = openFacilitiesCFLP cflp sol
+                        print openedCFLP
+                        putStrLn $ "mip x      : " ++ show (solX sol)
+--                        putStrLn $ "mip pi'    : " ++ show (solPi sol)
+--                        putStrLn $ "mip slack  : " ++ show (solSlack sol)
+--                        putStrLn $ "mip dj     : " ++ show (solDj sol)
+                        putStrLn $ "mip solstat: " ++ show (solStat sol)
+                        putStrLn $ "mip objval : " ++ show (solObj sol)
+
+
+sol :: CFLP -> IO ()
+sol cflp = withEnv $ \env -> do
+  setIntParam env CPX_PARAM_DATACHECK cpx_ON
+  setIntParam env CPX_PARAM_SCRIND cpx_ON
+  withLp env "CFLP" $ \lp -> do
+
+    let p = fromCFLP cflp
+--    let cflp = testCFLP
+--    let p = cflp >>= fromCFLP
+
+    print cflp
+--    print p
 
     statusLp <- case p of
       Nothing -> return $ Just "No valid problem"
@@ -564,6 +684,14 @@ sol = withEnv $ \env -> do
     statusSol <- getSolution env lp
     case statusSol of Left msg -> error msg
                       Right sol -> do
+
+                        putStrLn $ "lp x      : " ++ show (solX sol)
+--                        putStrLn $ "lp pi'    : " ++ show (solPi sol)
+--                        putStrLn $ "lp slack  : " ++ show (solSlack sol)
+--                        putStrLn $ "lp dj     : " ++ show (solDj sol)
+                        putStrLn $ "lp solstat: " ++ show (solStat sol)
+                        putStrLn $ "lp objval : " ++ show (solObj sol)
+
                         let openedCFLP = openFacilitiesCFLP cflp sol
 
 --                        case openedCFLP of
@@ -578,21 +706,14 @@ sol = withEnv $ \env -> do
                                                      (getBudget cflp sol)
                         print "Cluster:"
                         let cs = c1 cflp sol [] (getPossibleCenters cflp [])
-                        print $ cs
+                        printClusters cs
                         let cs' = c2 cflp cs
                         print "Updated Cluster:"
-                        print $ cs'
+                        printClusters cs'
                         let sncflps = map (clusterToSNCFLP cflp) cs'
                         print $ sncflps
                         print "Solved SNCFLPs"
                         print $ map (solveSNCFLP . snd) sncflps
-
-                        putStrLn $ "x      : " ++ show (solX sol)
-                        putStrLn $ "pi'    : " ++ show (solPi sol)
-                        putStrLn $ "slack  : " ++ show (solSlack sol)
-                        putStrLn $ "dj     : " ++ show (solDj sol)
-                        putStrLn $ "solstat: " ++ show (solStat sol)
-                        putStrLn $ "objval : " ++ show (solObj sol)
 
 
 
