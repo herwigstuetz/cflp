@@ -608,6 +608,11 @@ greedySolve vs       0 = replicate (length vs) 0.0
 greedySolve (v : vs) d | d < v  = d : greedySolve vs 0.0
                        | d >= v = v : greedySolve vs (d - v)
 
+getOpenedFacilities :: CFLP -> SNCFLP -> Facilities
+getOpenedFacilities (CFLP fs _ _) (SNCFLP nk _) = filter (\ i -> y i < 1.0) fs'
+  where fs' = catMaybes $ map (findFacility fs) $ map snFacilityId nk
+
+
 -- Assign clients
 
 
