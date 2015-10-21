@@ -482,7 +482,7 @@ calculateBj :: [Cluster] -> CFLP -> ClientId -> [FacilityId]
 calculateBj cluster cflp j = bj
   where fs = facilities cflp
         fj = [i | (Facility i _ _ _) <- fs, let xi = head $ getXs (distances cflp) [i] [j], xi > 0.0]
-        nk = concatMap (\ (Cluster k nk) -> nk) cluster
+        nk = concatMap (\(Cluster k nk) -> nk) cluster
         ks = map clusterCenter cluster
         ds = distances cflp
         bj = [i | i <- fj
@@ -512,7 +512,7 @@ c1 cflp sol c s  = (traceMsgId "c1   : " $ formCluster c cflp s (getBudget cflp 
 -- Step C2
 
 facilityDistances :: CFLP -> FacilityId -> Distances
-facilityDistances cflp i = filter (\ (Distance r s _ _) -> i == r) (distances cflp)
+facilityDistances cflp i = filter (\(Distance r s _ _) -> i == r) (distances cflp)
 
 nearestClient :: CFLP -> FacilityId -> ClientId
 nearestClient cflp i = j $ minimumBy (compare `on` c) dists
@@ -537,7 +537,7 @@ c2 cflp clusters = updateCluster facilityAssignment clusters
 
 
 traceMsgId :: Show a => String -> a -> a
-traceMsgId msg val = trace (msg ++ show val) val
+traceMsgId msg val = val --trace (msg ++ show val) val
 
 
 -- Reducing to single node
@@ -572,18 +572,19 @@ clusterToSNCFLP cflp (Cluster k nk) = if null snfs then Nothing
   where fs = catMaybes $ map (findFacility (facilities cflp)) nk
         cs = map clientId (clients cflp)
         ds = distances cflp
-        lk = filter (\ i -> y i < 1.0) fs
+        lk = filter (\i -> y i < 1.0) fs
 
         snfids = map facilityId lk
         snocs  = map f lk
         sncs   = map u lk
-        snds   = catMaybes $ map (\ i -> getDistanceById ds i k) snfids
+        snds   = catMaybes $ map (\i -> getDistanceById ds i k) snfids
 
         totalDemand = sum $ getXs ds snfids cs
         snfs        = zipWith5 SNFacility snfids snocs sncs snds [0.0,0.0..]
 
         sncflp = SNCFLP snfs totalDemand
 
+-- TODO: we need to actually bring back the update to the snfacility also to the cflp facility
 updateSNFacility :: SNFacility -> Double -> SNFacility
 updateSNFacility f x = f { snDemand = x }
 
@@ -592,15 +593,16 @@ updateSNCFLP (SNCFLP fs d) vs = SNCFLP (zipWith updateSNFacility fs vs) d
 
 -- TODO: Test if the right values are used (vs = zipWith (/) ... us) vs. (vs = zipWith (/) ... ws) etc.
 solveSNCFLP :: SNCFLP -> SNCFLP
-solveSNCFLP sncflp = updateSNCFLP sncflp vs'
---  where (fs, us, cs) = unzip3 $ map (\ f -> (snOpeningCost f, snCapacity f, snDistance f)) $ snFacilities sncflp
+solveSNCFLP sncflp = updateSNCFLP sncflp vs''
+--  where (fs, us, cs) = unzip3 $ map (\f -> (snOpeningCost f, snCapacity f, snDistance f)) $ snFacilities sncflp
   where fs = map snOpeningCost $ snFacilities sncflp
         us = map snCapacity $ snFacilities sncflp
         cs = map snDistance $ snFacilities sncflp
-        ws = zipWith3 (\ f u c -> f/u + c) fs us cs
+        ws = zipWith3 (\f u c -> f/u + c) fs us cs
         (order, ws') = unzip $ sortBy (compare `on` snd) $ zip [1..] ws
         vs = zipWith (/) (greedySolve ws $ snTotalDemand sncflp) us
-        (order', vs') = unzip $ sortBy (compare `on` fst) $ zip order vs
+        vs' = map (\x -> if x > 0.0 then 1.0 else 0.0) vs
+        (order', vs'') = unzip $ sortBy (compare `on` fst) $ zip order vs'
 
 greedySolve :: [Double] -> Double -> [Double]
 greedySolve []       d = []
