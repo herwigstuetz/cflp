@@ -13,6 +13,8 @@ import           Data.Maybe
 import qualified Data.Set                  as Set
 import qualified Data.Vector               as V
 import qualified Data.Vector.Storable      as VS
+
+import           Data.Array
 import           GHC.IO.Handle
 import           System.Directory
 import           System.IO
@@ -90,6 +92,22 @@ data MIP = MIP { sense  :: ObjSense
                , bnd    :: V.Vector (Maybe Double, Maybe Double)
                , ctypes :: V.Vector Type
                } deriving (Show)
+
+-- | Adapted from http://stackoverflow.com/questions/8901252/2d-array-in-haskell
+showTable arr =
+  unlines $ map (unwords . map ((printf "%.2f") . (arr !))) indices
+  where indices = [[(x, y) | y <- [startY..endY]] | x <- [startX..endX]]
+        ((startX, startY), (endX, endY)) = bounds arr
+
+showAmat :: [(Row, Col, Double)] -> String
+showAmat amat = showTable $ fromAmat amat
+
+fromAmat :: [(Row, Col, Double)] -> Array (Int, Int) Double
+fromAmat amat = array ((0,0), (n,m)) [((i,j),0.0) | i<-[0..n], j<-[0..m]] // a
+  where
+    n = maximum $ map (\(Row i, _, _) -> i) amat
+    m = maximum $ map (\(_, Col j, _) -> j) amat
+    a = map (\(Row i, Col j, x) -> ((i, j), x)) amat
 
 showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f") $ map selector list)
 
@@ -637,7 +655,10 @@ solMip cflp = withEnv $ \env -> do
 --    let p = cflp >>= fromCFLP
 
     print cflp
---    print p
+    print p
+    print $ obj $ fromJust p
+    putStr $ showAmat (amat $ fromJust p)
+
 
     statusLp <- case p of
       Nothing -> return $ Just "No valid problem"
