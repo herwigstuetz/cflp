@@ -610,9 +610,15 @@ greedySolve vs       0 = replicate (length vs) 0.0
 greedySolve (v : vs) d | d < v  = d : greedySolve vs 0.0
                        | d >= v = v : greedySolve vs (d - v)
 
-getOpenedFacilities :: CFLP -> SNCFLP -> Facilities
-getOpenedFacilities (CFLP fs _ _) (SNCFLP nk _) = filter (\ i -> y i < 1.0) fs'
-  where fs' = catMaybes $ map (findFacility fs) $ map snFacilityId nk
+getOpenedFacilitiesFromClusters :: CFLP -> [Cluster] -> Facilities
+getOpenedFacilitiesFromClusters cflp clusters = filter (\i -> y i == 1.0) fs
+  where nk = concatMap clusterElements clusters
+        fs = catMaybes $ map (findFacility (facilities cflp)) nk
+
+getOpenedFacilitiesFromSNCFLPs :: CFLP -> [SNCFLP] -> Facilities
+getOpenedFacilitiesFromSNCFLPs cflp sncflps = fs
+  where nk = traceMsgId "fsn nk: " $ filter (\f -> snDemand f == 1.0 ) $ concatMap snFacilities sncflps
+        fs = traceMsgId "fsn fs: " $ catMaybes $ map (findFacility (facilities cflp)) $ map snFacilityId nk
 
 
 -- Assign clients
@@ -722,16 +728,26 @@ sol cflp = withEnv $ \env -> do
                         print "Updated Cluster:"
                         printClusters cs'
                         let sncflps = catMaybes $ map (clusterToSNCFLP cflp) cs'
-                        print $ sncflps
-                        print "Solved SNCFLPs"
+
+                        -- print "SNCFLPs"
+                        -- print $ sncflps
+                        -- print "Solved SNCFLPs"
                         let sncflps' = map (solveSNCFLP . snd) $ sncflps
-                        print $ sncflps'
+--                        print $ sncflps'
 
-                        print "Open Facilities"
-                        print $ map (getOpenedFacilities cflp) $ (map snd sncflps) ++ sncflps'
+                        let openedFs  = getOpenedFacilitiesFromClusters cflp cs'
+                            openedFs' = getOpenedFacilitiesFromSNCFLPs cflp sncflps'
+                        print "Open Facilities from Cluster:"
+                        print openedFs
 
+                        print "Open Facilities from SNCFLP:"
+                        print openedFs'
 
+                        print "Open IDs:"
+                        print $ map facilityId (openedFs ++ openedFs')
 
+                        print "Closed IDs:"
+                        print $ (map facilityId (facilities cflp)) \\ (map facilityId (openedFs ++ openedFs'))
 
 
 cpx_ON :: CInt
