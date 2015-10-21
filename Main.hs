@@ -617,8 +617,8 @@ getOpenedFacilitiesFromClusters cflp clusters = filter (\i -> y i == 1.0) fs
 
 getOpenedFacilitiesFromSNCFLPs :: CFLP -> [SNCFLP] -> Facilities
 getOpenedFacilitiesFromSNCFLPs cflp sncflps = fs
-  where nk = traceMsgId "fsn nk: " $ filter (\f -> snDemand f == 1.0 ) $ concatMap snFacilities sncflps
-        fs = traceMsgId "fsn fs: " $ catMaybes $ map (findFacility (facilities cflp)) $ map snFacilityId nk
+  where nk = filter (\f -> snDemand f == 1.0 ) $ concatMap snFacilities sncflps
+        fs = catMaybes $ map (findFacility (facilities cflp)) $ map snFacilityId nk
 
 
 -- Assign clients
