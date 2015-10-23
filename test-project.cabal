@@ -19,7 +19,8 @@ executable test-project
   main-is:             Main.hs
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.8 && <4.9
+  build-depends:       array >= 0.5.1.0
+                     , base >=4.8 && <4.9
                      , containers >= 0.5.6.2
                      , cplex
                      , directory
