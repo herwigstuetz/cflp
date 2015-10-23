@@ -111,6 +111,9 @@ fromAmat amat = array ((0,0), (n,m)) [((i,j),0.0) | i<-[0..n], j<-[0..m]] // a
 
 showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f") $ map selector list)
 
+showFacilityIds :: Facilities -> String
+showFacilityIds fs = "  i: " ++ (unwords $ map (show . facilityId) fs)
+
 showOpeningCosts :: Facilities -> String
 showOpeningCosts fs = showFormat "f_i: " f fs
 
@@ -120,14 +123,19 @@ showCapacities   fs = showFormat "u_i: " u fs
 showFractionOpen :: Facilities -> String
 showFractionOpen fs = showFormat "y_i: " y fs
 
-showFacilities fs = (showOpeningCosts fs) ++ "\n" ++
+showFacilities fs = (showFacilityIds fs) ++ "\n" ++
+                    (showOpeningCosts fs) ++ "\n" ++
                     (showCapacities fs) ++ "\n" ++
                     (showFractionOpen fs)
+
+showClientIds :: Clients -> String
+showClientIds cs = "  j: " ++ (unwords $ map (show . clientId) cs)
 
 showDemands :: Clients -> String
 showDemands cs = showFormat "d_j: " d cs
 
-showClients cs = showDemands cs
+showClients cs = (showClientIds cs) ++ "\n" ++
+                 (showDemands cs)
 
 showCosts :: Distances -> String
 showCosts ds = showFormat ("f_" ++ show (i (ds !! 0)) ++ ": ") c ds
