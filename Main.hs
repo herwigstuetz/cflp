@@ -378,7 +378,10 @@ rhs3 n m = [L 0.0 | i <- [0..n-1]]
 
 createRhs n m = V.fromList $ rhs1 n m ++ rhs2 n m ++ rhs3 n m
 
+ybnds :: Int -> Int -> [(Maybe Double, Maybe Double)]
 ybnds n m = [(Just 0.0, Just 1.0) | i <- [0..n-1]]
+
+xbnds :: Int -> Int -> [(Maybe Double, Maybe Double)]
 xbnds n m = [(Just 0.0, Nothing) | i <- [0..n-1], j <- [0..m-1]]
 
 bnds :: Int -> Int -> V.Vector (Maybe Double, Maybe Double)
