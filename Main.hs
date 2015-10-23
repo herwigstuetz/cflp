@@ -485,7 +485,8 @@ satisfyDemand :: Distances -> [Double] -> Distances
 satisfyDemand ds xs = let n = maximum $ map i ds
                           m = maximum $ map j ds
                           findD i j = find (\(Distance s t _ _) -> i == s && j == t)
-                      in zipWith satisfy [fromJust $ findD i j ds | j <- [0..m], i <- [0..n]] xs
+                      in zipWith satisfy (traceMsgId "cij: " [fromJust $ findD i j ds | j <- [0..m], i <- [0..n]]) (traceMsgId "xij: " xs)
+--                      in zipWith satisfy [fromJust $ findD i j ds | i <- [0..n-1], j <- [0..m-1]] xs
 
 
 
