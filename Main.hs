@@ -340,7 +340,7 @@ constraints1y n m = []
 constraints1x :: Int -> Int -> [(Row, Col, Double)]
 constraints1x n m = concat [[(Row j, Col $ xCol n m (i, j), 1) | i <- [0..n-1]] | j <- [0..m-1]]
 
-constraints2y n m = concat [[(Row $ xCol n m (i, j), Col j, -1) | i <- [0..n-1]] | j <- [0..m-1]]
+constraints2y n m = [(Row (j + i*(n-1)), Col i, -1) | i <- [0..n-1], j <- [0..m-1]]
 constraints2x n m = [(Row i, Col i, 1) | i <- [0..n*m-1]]
 
 maybeTuple :: (a, b, Maybe c) -> Maybe (a, b, c)
