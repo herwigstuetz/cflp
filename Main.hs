@@ -684,7 +684,7 @@ solMip cflp = withEnv $ \env -> do
                       Right sol -> do
                         let openedCFLP = openFacilitiesCFLP cflp sol
                         putStrLn $ "Open Facilities from MIP:"
-                        print $ map facilityId (facilities openedCFLP)
+                        print $ map facilityId (filter (\f -> y f == 1.0) (facilities openedCFLP))
                         putStrLn $ "mip x      : " ++ show (solX sol)
 --                        putStrLn $ "mip pi'    : " ++ show (solPi sol)
 --                        putStrLn $ "mip slack  : " ++ show (solSlack sol)
@@ -740,8 +740,8 @@ sol cflp = withEnv $ \env -> do
 --                            print "noopenedcflp"
 --                            return ()
 --                          Just cflp -> do
-                        putStrLn $ "Open Facilities from algorithm:"
-                        print $ map facilityId (facilities openedCFLP)
+                        putStrLn $ "Open Facilities from LP:"
+                        print $ map facilityId (filter (\f -> y f == 1.0) (facilities openedCFLP))
 
                         let cflp = openedCFLP
                         print "Possible Centers"
