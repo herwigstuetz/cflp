@@ -339,60 +339,28 @@ xIdx n m i j  | (0 <= i) && (i < n) && (0 <= j) && (j < m) = n + (j*n + i)
 xIdx' n m i j | (0 <= i) && (i < n) && (0 <= j) && (j < m) =      j*n + i
 yIdx n m i    | (0 <= i) && (i < n)                        =            i
 
-constraints1y :: Int -> Int -> [(Row, Col, Double)]
-constraints1y n m = []
-constraints1x :: Int -> Int -> [(Row, Col, Double)]
-constraints1x n m = concat [[(Row j, Col $ xCol n m (i, j), 1) | i <- [0..n-1]] | j <- [0..m-1]]
-
-constraints2y n m = [(Row (j + i*(n-1)), Col i, -1) | i <- [0..n-1], j <- [0..m-1]]
---c2y n m = [(Row , (Col $ yIdx n m i), -1.0) | (i, r) <- take (n * m) $ zip (concatMap (\i -> take m $ repeat i) [0..]) [0..]]
-
---constraints2x n m = [(Row i, Col i, 1) | i <- [0..n*m-1]]
-constraints2x n m = [(Row r, Col (xIdx' n m i j), 1) | (r,(i,j)) <- zip [0..] [(i, j) | i <- [0..n-1], j <- [0..m-1]]]
+ctr1 :: Int -> Int -> [[(Int, Double)]]
+ctr1 n m = [ [(xIdx n m i j, 1.0) | i <- [0..n-1]] | j <- [0..m-1] ]
 
 ctr2 :: Int -> Int -> [[(Int, Double)]]
 ctr2 n m = [ [(yIdx n m i, -1.0), (xIdx n m i j, 1.0)] | i <- [0..n-1], j <- [0..m-1] ]
 
-ctr2' :: Int -> Int -> [(Int, [(Int, Double)])]
-ctr2' n m = zip [0..] (ctr2 n m)
-
-ctr2'' :: Int -> Int -> [[(Int, Int, Double)]]
-ctr2'' n m = map fn (ctr2' n m)
-  where fn = (\(r, l) -> map (\(c, x) -> (r, c, x)) l)
-
-ctr2''' :: Int -> Int -> [(Row, Col, Double)]
-ctr2''' n m = map (\(r,c,x) -> (Row r, Col c, x)) (concat $ ctr2'' n m)
-
-
-maybeTuple :: (a, b, Maybe c) -> Maybe (a, b, c)
-maybeTuple (a, b, Just c) = Just (a, b, c)
-maybeTuple (a, b, Nothing) = Nothing
+ctr3 :: Facilities -> Clients -> Int -> Int -> [[(Int, Double)]]
+ctr3 fs cs n m = [ [(xIdx n m i j, dj)
+                  | j <- [0..m-1], let Just dj = getDemandById cs j ]
+                  ++ [(yIdx n m i, -ui)]
+                | i <- [0..n-1], let Just ui = getCapacityById fs i]
 
 seqTuple :: (a, b, Maybe c) -> Maybe (a, b, c)
 seqTuple (a, b, Just c) = Just (a, b, c)
 seqTuple (_, _, Nothing) = Nothing
 
-constraints3y :: [Facility] -> [Client] -> Int -> Int -> Maybe [(Row, Col, Double)]
-constraints3y fs cs n m = sequence [seqTuple (Row i, Col i, (*) <$> Just (-1) <*> getCapacityById fs i) | i <- [0..n-1]]
-
-constraints3x :: [Facility] -> [Client] -> Int -> Int -> Maybe [(Row, Col, Double)]
-constraints3x fs cs n m = sequence $ concat [[seqTuple (Row i, Col $ xCol n m (i, j), getDemandById cs j) | j <- [0..m-1]] | i <- [0..n-1]]
-
-constraints1 n m = constraints1y n m ++ map (shiftCol $ Col n) (constraints1x n m)
---constraints2 n m = constraints2y n m ++ map (shiftCol $ Col n) (constraints2x n m)
-constraints2 n m = ctr2''' n m
-
-constraints3 :: [Facility] -> [Client] -> Int -> Int -> Maybe [(Row, Col, Double)]
-constraints3 fs cs n m = do
-  ys <- constraints3y fs cs n m
-  xs <- constraints3x fs cs n m
-  return $ ys ++ map (shiftCol (Col n)) xs
+fromConstraints :: [[(Int, Double)]] -> [(Row, Col, Double)]
+fromConstraints l = map (\(r,c,x) -> (Row r, Col c, x)) (concatMap f $ zip [0..] l)
+  where f (r, l) = map (\(c, x) -> (r, c, x)) l
 
 constraints fs cs n m = do
-  c1 <- Just $ constraints1 n m
-  c2 <- Just $ constraints2 n m
-  c3 <- constraints3 fs cs n m
-  return $ c1 ++ map (shiftRow $ Row m) c2 ++ map (shiftRow $ Row (m + n*m)) c3
+  Just $ fromConstraints $ (ctr1 n m) ++ (ctr2 n m) ++ (ctr3 fs cs n m)
 
 rhs1 n m = [G 1.0 | j <- [0..m-1]]
 rhs2 n m = [L 0.0 | i <- [0..n-1], j <- [0..m-1]]
