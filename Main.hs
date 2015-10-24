@@ -683,7 +683,8 @@ solMip cflp = withEnv $ \env -> do
     case statusSol of Left msg -> error msg
                       Right sol -> do
                         let openedCFLP = openFacilitiesCFLP cflp sol
-                        print openedCFLP
+                        putStrLn $ "Open Facilities from MIP:"
+                        print $ map facilityId (facilities openedCFLP)
                         putStrLn $ "mip x      : " ++ show (solX sol)
 --                        putStrLn $ "mip pi'    : " ++ show (solPi sol)
 --                        putStrLn $ "mip slack  : " ++ show (solSlack sol)
@@ -739,6 +740,9 @@ sol cflp = withEnv $ \env -> do
 --                            print "noopenedcflp"
 --                            return ()
 --                          Just cflp -> do
+                        putStrLn $ "Open Facilities from algorithm:"
+                        print $ map facilityId (facilities openedCFLP)
+
                         let cflp = openedCFLP
                         print "Possible Centers"
                         print $ getPossibleCenters cflp []
