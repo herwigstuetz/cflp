@@ -378,8 +378,8 @@ bnds :: Int -> Int -> V.Vector (Maybe Double, Maybe Double)
 bnds n m = V.fromList $ ybnds n m ++ xbnds n m
 
 varTypes :: Int -> Int -> V.Vector Type
-varTypes n m = V.fromList $ take (length $ ybnds n m) (repeat CPX_BINARY)
-               ++ take (length $ xbnds n m) (repeat CPX_CONTINUOUS)
+varTypes n m = V.fromList $ replicate (length $ ybnds n m) CPX_BINARY
+               ++ replicate (length $ xbnds n m) CPX_CONTINUOUS
 objsen = CPX_MAX
 
 test11 :: CFLP -> [(Int, Int)]
@@ -403,7 +403,7 @@ runLP :: MIP -> CpxEnv -> CpxLp -> IO (Maybe String)
 runLP (MIP sense obj rhs amat bnd _) cpxEnv cpxLp = copyLp cpxEnv cpxLp sense obj rhs amat bnd
 
 runMIP :: MIP -> CpxEnv -> CpxLp -> IO (Maybe String)
-runMIP (MIP sense obj rhs amat bnd ctypes) cpxEnv cpxLp = do
+runMIP (MIP sense obj rhs amat bnd ctypes) cpxEnv cpxLp =
   copyMip cpxEnv cpxLp sense obj rhs amat bnd ctypes
 
 
