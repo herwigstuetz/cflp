@@ -700,135 +700,124 @@ fromOpenedCFLP cflp = let s = CPX_MIN
                       in
                         MIP s o r a b t
 
+solMip :: String -> MIP -> IO (CpxSolution)
+solMip name p = withEnv $ \env -> do
   setIntParam env CPX_PARAM_DATACHECK cpx_ON
   setIntParam env CPX_PARAM_SCRIND cpx_ON
-  withLp env "CFLP" $ \lp -> do
+  withLp env name $ \mip -> do
+    putStrLn $ "Solving " ++ name ++ ":"
 
---    cflp <- randomCFLP 10 10
-    let p = fromCFLP cflp
---    let cflp = testCFLP
---    let p = cflp >>= fromCFLP
+    statusMip <- runMip p env mip
 
-    print cflp
-    print p
-    print $ obj $ fromJust p
-    putStr $ showAmat (amat $ fromJust p)
-
-
-    statusLp <- case p of
-      Nothing -> return $ Just "No valid problem"
-      Just p -> runMIP p env lp
-
-    case statusLp of
+    case statusMip of
       Nothing -> return ()
       Just msg -> error $ "CPXcopylp error: " ++ msg
+    putStrLn $ "Solving " ++ name ++ ":"
 
     -- Solve problem
-
-    statusOpt <- mipopt env lp
+    statusOpt <- mipopt env mip
     case statusOpt of
       Nothing -> return ()
       Just msg -> error $ "CPXlpopt error: " ++ msg
-
+    putStrLn $ "Solving " ++ name ++ ":"
 
     -- Retrieve solution
-    statusSol <- getMIPSolution env lp
+    statusSol <- getMIPSolution env mip
     case statusSol of Left msg -> error msg
-                      Right sol -> do
-                        let openedCFLP = openFacilitiesCFLP cflp sol
-                        putStrLn $ "Open Facilities from MIP:"
-                        print $ map facilityId (filter (\f -> y f == 1.0) (facilities openedCFLP))
-                        putStrLn $ "mip x      : " ++ show (solX sol)
---                        putStrLn $ "mip pi'    : " ++ show (solPi sol)
---                        putStrLn $ "mip slack  : " ++ show (solSlack sol)
---                        putStrLn $ "mip dj     : " ++ show (solDj sol)
-                        putStrLn $ "mip solstat: " ++ show (solStat sol)
-                        putStrLn $ "mip objval : " ++ show (solObj sol)
+                      Right sol -> return sol
 
-
-sol :: CFLP -> IO ()
-sol cflp = withEnv $ \env -> do
+solLp :: String -> MIP -> IO (CpxSolution)
+solLp name p = withEnv $ \env -> do
   setIntParam env CPX_PARAM_DATACHECK cpx_ON
   setIntParam env CPX_PARAM_SCRIND cpx_ON
-  withLp env "CFLP" $ \lp -> do
+  withLp env name $ \lp -> do
+    putStrLn $ "Solving " ++ name ++ ":"
 
-    let p = fromCFLP cflp
---    let cflp = testCFLP
---    let p = cflp >>= fromCFLP
-
-    print cflp
---    print p
-
-    statusLp <- case p of
-      Nothing -> return $ Just "No valid problem"
-      Just p -> runLP p env lp
+    statusLp <- runLp p env lp
 
     case statusLp of
       Nothing -> return ()
       Just msg -> error $ "CPXcopylp error: " ++ msg
+    putStrLn $ "Solving " ++ name ++ ":"
 
     -- Solve problem
     statusOpt <- lpopt env lp
     case statusOpt of
       Nothing -> return ()
       Just msg -> error $ "CPXlpopt error: " ++ msg
-
+    putStrLn $ "Solving " ++ name ++ ":"
 
     -- Retrieve solution
     statusSol <- getSolution env lp
     case statusSol of Left msg -> error msg
-                      Right sol -> do
+                      Right sol -> return sol
 
-                        putStrLn $ "lp x      : " ++ show (solX sol)
---                        putStrLn $ "lp pi'    : " ++ show (solPi sol)
---                        putStrLn $ "lp slack  : " ++ show (solSlack sol)
---                        putStrLn $ "lp dj     : " ++ show (solDj sol)
-                        putStrLn $ "lp solstat: " ++ show (solStat sol)
-                        putStrLn $ "lp objval : " ++ show (solObj sol)
+sol :: CFLP -> IO ()
+sol cflp = do
+  lpSol <- solLp "CFLP" $ fromJust . fromCFLP $ cflp
 
-                        let openedCFLP = openFacilitiesCFLP cflp sol
+  putStrLn $ "lp x      : " ++ show (solX lpSol)
+  putStrLn $ "lp solstat: " ++ show (solStat lpSol)
+  putStrLn $ "lp objval : " ++ show (solObj lpSol)
 
---                        case openedCFLP of
---                          Nothing -> do
---                            print "noopenedcflp"
---                            return ()
---                          Just cflp -> do
-                        putStrLn $ "Open Facilities from LP:"
-                        print $ map facilityId (filter (\f -> y f == 1.0) (facilities openedCFLP))
+  let openedCFLP = openFacilitiesCFLP cflp lpSol
 
-                        let cflp = openedCFLP
-                        print "Possible Centers"
-                        print $ getPossibleCenters cflp []
-                        print $ chooseNextCenter (getPossibleCenters cflp [])
-                                                     (getBudget cflp sol)
-                        print "Cluster:"
-                        let cs = c1 cflp sol [] (getPossibleCenters cflp [])
-                        printClusters cs
-                        let cs' = c2 cflp cs
-                        print "Updated Cluster:"
-                        printClusters cs'
-                        let sncflps = catMaybes $ map (clusterToSNCFLP cflp) cs'
+  putStrLn $ "Open Facilities from LP:"
+  print $ map facilityId (filter (\f -> y f == 1.0) (facilities openedCFLP))
 
-                        -- print "SNCFLPs"
-                        -- print $ sncflps
-                        -- print "Solved SNCFLPs"
-                        let sncflps' = map (solveSNCFLP . snd) $ sncflps
---                        print $ sncflps'
+  let cflp = openedCFLP
+  print "Possible Centers"
+  print $ getPossibleCenters cflp []
+  print $ chooseNextCenter (getPossibleCenters cflp [])
+                           (getBudget cflp lpSol)
+  print "Cluster:"
+  let cs = c1 cflp lpSol [] (getPossibleCenters cflp [])
+  printClusters cs
+  let cs' = c2 cflp cs
+  print "Updated Cluster:"
+  printClusters cs'
+  let sncflps = catMaybes $ map (clusterToSNCFLP cflp) cs'
 
-                        let openedFs  = getOpenedFacilitiesFromClusters cflp cs'
-                            openedFs' = getOpenedFacilitiesFromSNCFLPs cflp sncflps'
-                        print "Open Facilities from Cluster:"
-                        print openedFs
+  let sncflps' = map (solveSNCFLP . snd) $ sncflps
 
-                        print "Open Facilities from SNCFLP:"
-                        print openedFs'
+  let openedFs   = getOpenedFacilitiesFromClusters cflp cs'
+      openedFs'  = getOpenedFacilitiesFromSNCFLPs cflp sncflps'
+      openedFs'' = openedFs ++ openedFs'
+      openedIds  = map facilityId openedFs''
+  print "Open Facilities from Cluster:"
+  print openedFs
 
-                        print "Open IDs:"
-                        print $ map facilityId (openedFs ++ openedFs')
+  print "Open Facilities from SNCFLP:"
+  print openedFs'
 
-                        print "Closed IDs:"
-                        print $ (map facilityId (facilities cflp)) \\ (map facilityId (openedFs ++ openedFs'))
+  print "Open IDs:"
+  print $ map facilityId openedFs''
 
+  print "Closed IDs:"
+  print $ (map facilityId (facilities cflp)) \\ (map facilityId (openedFs ++ openedFs'))
+
+
+  let openedCFLP = CFLP (filter (\f -> facilityId f `elem` openedIds) (facilities cflp))
+                        (clients cflp)
+                        (filter (\d -> i d `elem` openedIds) (distances cflp))
+
+
+  let mcf = fromOpenedCFLP openedCFLP
+  print $ obj mcf
+  putStr $ showAmat (amat mcf)
+
+  print openedCFLP
+--  print $ distances $ openedCFLP
+  print mcf
+  mcfSol <- solLp "MCF" mcf
+
+  print $ solX mcfSol
+  let openedMcf = assignFacilitiesMCF openedCFLP mcfSol
+  print openedMcf
+  print "Total Cost: "
+  print $ (solObj mcfSol)
+  print $ sum (map f (facilities cflp))
+  print $ (solObj mcfSol) + sum (map f (facilities cflp))
 
 cpx_ON :: CInt
 cpx_ON  =  1
