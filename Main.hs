@@ -215,10 +215,6 @@ testDist =
   createDistanceFromList testFac testClient [(0,0,1), (0,1,1.2), (0,2,1.3),
                                              (1,0,2.1), (1,1,2.2), (1,2,2.3)]
 
-n = length testFac
-m = length testClient
-
-
 testCFLP :: Maybe CFLP
 testCFLP =
   case testDist of Nothing -> Nothing
@@ -421,6 +417,10 @@ showAMat amat rhs = intercalate "\n" [unwords ([show $ a i j | j <- [0..n+n*m-1]
   where el (_, _, d) = d
         a :: Int -> Int -> Double
         a i j = fromMaybe 0.0 $ el <$> find (\(Row k, Col l, _) -> i == k && j == l) amat
+        fs = map head (group . sort $ map (\(Row i, _, _) -> i) amat)
+        cs = map head (group . sort $ map (\(_, Col j, _) -> j) amat)
+        n = length fs
+        m = length cs
 
 showLP (MIP sense obj rhs amat bnd _) = showObjSense sense
                                         ++ showObj obj
