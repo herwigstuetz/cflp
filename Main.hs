@@ -48,8 +48,11 @@ main = do
 
   if not $ isFeasible cflp
     then main
-    else do solMip cflp-- >>= print
-            sol cflp-- >>= print
+    else case fromCFLP cflp of Nothing -> main
+                               Just mip' -> do
+                                 solMip "CFLP" mip'
+                                 sol cflp
+
 --  sol' >>= print
 --  print testFac
 --  print testClient
