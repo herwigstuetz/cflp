@@ -53,12 +53,6 @@ main = do
                                  solMip "CFLP" mip'
                                  sol cflp
 
---  sol' >>= print
---  print testFac
---  print testClient
---  print testDist
---  print $ createObjFromCFLP <$> testCFLP
-
 type FacilityId = Int
 data Facility = Facility { facilityId :: FacilityId
                          , f          :: Double -- opening cost
@@ -259,27 +253,9 @@ randomCFLP n m =
      return $ CFLP fs cs ds
 
 
--- copyLp ::
---   CpxEnv
---   -> CpxLp
---   -> ObjSense
---   -> V.Vector Double
---   -> V.Vector Sense
---   -> [(Row, Col, Double)]
---   -> V.Vector (Maybe Double, Maybe Double)
---   -> IO (Maybe String)
---   	-- Defined in ‘CPLEX’
-
--- fromCFLP :: CFLP -> (ObjSense, V.Vector Double)
--- fromCFLP (CFLP fac clients dists) =
---   let objsen = CPX_MIN
---       obj = create
-
 createObjFromCFLP :: CFLP -> [Double]
 createObjFromCFLP (CFLP fac clients dists) =
   [f | (Facility _ f _ _) <- fac]
-
---               ++
 
 findClient :: Clients -> Int -> Maybe Client
 findClient cs j = find isClient cs
@@ -459,14 +435,12 @@ satisfyDemand ds xs = let n = maximum $ map i ds
                           m = maximum $ map j ds
                           findD i j = find (\(Distance s t _ _) -> i == s && j == t)
                       in zipWith satisfy (traceMsgId "cij: " [fromJust $ findD i j ds | j <- [0..m], i <- [0..n]]) (traceMsgId "xij: " xs)
---                      in zipWith satisfy [fromJust $ findD i j ds | i <- [0..n-1], j <- [0..m-1]] xs
 
 assignFacilitiesMCF :: CFLP -> CpxSolution -> CFLP
 assignFacilitiesMCF mcf sol = mcf { distances = satisfyDemand (distances mcf) (VS.toList (solX sol)) }
 
 -- Clustering
 
---data Center = Center Int [Int] -- clientId [facilityId]
 data Cluster = Cluster { clusterCenter   :: ClientId
                        , clusterElements :: [FacilityId]
                        }
@@ -620,7 +594,6 @@ updateSNCFLP (SNCFLP fs d) vs = SNCFLP (zipWith updateSNFacility fs vs) d
 -- TODO: Test if the right values are used (vs = zipWith (/) ... us) vs. (vs = zipWith (/) ... ws) etc.
 solveSNCFLP :: SNCFLP -> SNCFLP
 solveSNCFLP sncflp = updateSNCFLP sncflp vs''
---  where (fs, us, cs) = unzip3 $ map (\f -> (snOpeningCost f, snCapacity f, snDistance f)) $ snFacilities sncflp
   where fs = map snOpeningCost $ snFacilities sncflp
         us = map snCapacity $ snFacilities sncflp
         cs = map snDistance $ snFacilities sncflp
@@ -694,8 +667,6 @@ mcfTypes cflp = V.fromList $ replicate (n * m) CPX_CONTINUOUS
 fromOpenedCFLP :: CFLP -> MIP
 fromOpenedCFLP cflp = let s = CPX_MIN
                           o = mcfObj cflp
---                          n = length $ facilities cflp
---                          m = length $ clients cflp
                           r = mcfRhs cflp
                           a = mcfConstraints cflp
                           b = mcfBnds cflp
@@ -810,7 +781,6 @@ sol cflp = do
   putStr $ showAmat (amat mcf)
 
   print openedCFLP
---  print $ distances $ openedCFLP
   print mcf
   mcfSol <- solLp "MCF" mcf
 
