@@ -366,6 +366,7 @@ rhs1 n m = [G 1.0 | j <- [0..m-1]]
 rhs2 n m = [L 0.0 | i <- [0..n-1], j <- [0..m-1]]
 rhs3 n m = [L 0.0 | i <- [0..n-1]]
 
+createRhs :: Int -> Int -> V.Vector Sense
 createRhs n m = V.fromList $ rhs1 n m ++ rhs2 n m ++ rhs3 n m
 
 ybnds :: Int -> Int -> [(Maybe Double, Maybe Double)]
