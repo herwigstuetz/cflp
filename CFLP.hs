@@ -89,3 +89,28 @@ showCFLP cflp = (showFacilities $ facilities cflp) ++ "\n\n"
 
 instance Show CFLP where
   show = showCFLP
+-- | Accessors
+
+findClient :: Clients -> Int -> Maybe Client
+findClient cs j = find isClient cs
+  where isClient (Client id _) = id == j
+
+findFacility :: Facilities -> Int -> Maybe Facility
+findFacility fs i = find isFacility fs
+  where isFacility (Facility id _ _ _) = id == i
+
+findDistance :: Distances -> Int -> Int -> Maybe Distance
+findDistance ds i j = find isDistance ds
+  where isDistance (Distance from to _ _) = i == from && j == to
+
+
+getCapacityById :: [Facility] -> Int -> Maybe Double
+getCapacityById fs i = u <$> find (\f -> facilityId f == i) fs
+
+getDemandById :: [Client] -> Int -> Maybe Double
+getDemandById cs j = d <$> find (\c -> clientId c == j) cs
+
+getDistanceById :: Distances -> FacilityId -> ClientId -> Maybe Double
+getDistanceById ds i j = c <$> find (\(Distance s t _ _) -> i == s && j == t) ds
+
+
