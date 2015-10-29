@@ -289,14 +289,6 @@ createObj p@(CFLP fs cs ds) = do
   xs <- createObjIndexedListFromCFLP p
   return $ V.fromList $ ys ++ map f (sortObjList xs)
 
--- | indices starting with 0
-yCol :: Int -> Int -> Int -> Int
-yCol _ _ = id
-
--- | indices starting with 0
-xCol :: Int -> Int -> (Int, Int) -> Int
-xCol n m (i, j) = j * n + i
-
 
 getCapacityById :: [Facility] -> Int -> Maybe Double
 getCapacityById fs i = u <$> find (\f -> facilityId f == i) fs
