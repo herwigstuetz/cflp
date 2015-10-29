@@ -119,22 +119,6 @@ createDistanceFromList fac clients = mapM (createDistance fac clients)
 isFeasible :: CFLP -> Bool
 isFeasible (CFLP fs cs _) = (sum $ map u fs) >= (sum $ map d cs)
 
-testFac =
-  createFacilitiesFromList [(1,8), (2,3)]
-
-testClient =
-  createClientsFromList [1, 3, 7]
-
-testDist =
-  createDistanceFromList testFac testClient [(0,0,1), (0,1,1.2), (0,2,1.3),
-                                             (1,0,2.1), (1,1,2.2), (1,2,2.3)]
-
-testCFLP :: Maybe CFLP
-testCFLP =
-  case testDist of Nothing -> Nothing
-                   Just dists -> Just $ CFLP testFac testClient dists
-
-
 randomFacilities :: Int -> IO Facilities
 randomFacilities n =
   do let range = (0.0, 100.0)
