@@ -176,14 +176,7 @@ createObj p@(CFLP fs cs ds) = do
   return $ V.fromList $ ys ++ map f (sortObjList xs)
 
 
-shiftCol :: Col -> (Row, Col, Double) -> (Row, Col, Double)
-shiftCol (Col n) (Row r, Col s, x) = (Row r, Col $ n + s, x)
-
-shiftRow :: Row -> (Row, Col, Double) -> (Row, Col, Double)
-shiftRow (Row n) (Row r, Col s, x) = (Row $ n + r, Col s, x)
-
 xIdx n m i j  | (0 <= i) && (i < n) && (0 <= j) && (j < m) = n + (j*n + i)
-xIdx' n m i j | (0 <= i) && (i < n) && (0 <= j) && (j < m) =      j*n + i
 yIdx n m i    | (0 <= i) && (i < n)                        =            i
 
 ctr1 :: Int -> Int -> [[(Int, Double)]]
@@ -228,12 +221,6 @@ bnds n m = V.fromList $ ybnds n m ++ xbnds n m
 varTypes :: Int -> Int -> V.Vector Type
 varTypes n m = V.fromList $ replicate (length $ ybnds n m) CPX_BINARY
                ++ replicate (length $ xbnds n m) CPX_CONTINUOUS
-objsen = CPX_MAX
-
-test11 :: CFLP -> [(Int, Int)]
-test11 (CFLP fac clients dists) =
-  [(i,j) | (Distance i j _ _) <- dists]
-
 
 fromCFLP :: CFLP -> Maybe MIP
 fromCFLP cflp = let s = CPX_MIN
