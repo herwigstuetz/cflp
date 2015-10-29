@@ -400,11 +400,12 @@ fromCFLP cflp = let s = CPX_MIN
                 in
                   MIP s <$> o <*> Just r <*> a <*> Just b <*> Just t
 
-runLP :: MIP -> CpxEnv -> CpxLp -> IO (Maybe String)
-runLP (MIP sense obj rhs amat bnd _) cpxEnv cpxLp = copyLp cpxEnv cpxLp sense obj rhs amat bnd
+runLp :: MIP -> CpxEnv -> CpxLp -> IO (Maybe String)
+runLp (MIP sense obj rhs amat bnd _) cpxEnv cpxLp =
+  copyLp cpxEnv cpxLp sense obj rhs amat bnd
 
-runMIP :: MIP -> CpxEnv -> CpxLp -> IO (Maybe String)
-runMIP (MIP sense obj rhs amat bnd ctypes) cpxEnv cpxLp =
+runMip :: MIP -> CpxEnv -> CpxLp -> IO (Maybe String)
+runMip (MIP sense obj rhs amat bnd ctypes) cpxEnv cpxLp =
   copyMip cpxEnv cpxLp sense obj rhs amat bnd ctypes
 
 
