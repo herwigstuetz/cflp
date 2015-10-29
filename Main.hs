@@ -5,7 +5,7 @@ module Main where
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import           Data.Function
-import           Data.List                 (find, intercalate, maximumBy,
+import           Data.List                 (find, group, intercalate, maximumBy,
                                             minimumBy, sort, sortBy, splitAt,
                                             zipWith4, zipWith5, (\\))
 import qualified Data.Map.Strict           as Map
@@ -147,12 +147,12 @@ distancesFromFacility ds i' = sortBy (compare `on` j) $ [distance | distance <- 
 distancesToClient ds j' = sortBy (compare `on` i) $ [distance | distance <- ds, j distance == j']
 
 showDistancesElement :: (Distances -> String) -> Distances -> String
-showDistancesElement selector ds = ("    " ++ (unwords $ map (printf "  c_%d") $ take m ([0,1..] :: [Int])))
+showDistancesElement selector ds = ("    " ++ (unwords $ map (printf "  c_%d") cs))
                    ++ "\n" ++
-                   (unlines $ map selector [distancesFromFacility ds i | i <- [0..n-1]])
+                   (unlines $ map selector [distancesFromFacility ds i | i <- fs])
   where
-    n = (maximum $ map i ds) + 1
-    m = (maximum $ map j ds) + 1
+    fs = map head (group . sort $ map i ds)
+    cs = map head (group . sort $ map j ds)
 
 showDistances ds = (showDistancesElement showCosts ds)
                    ++ "\n" ++
