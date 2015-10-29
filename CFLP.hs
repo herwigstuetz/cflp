@@ -109,10 +109,10 @@ findDistance ds i j = find isDistance ds
   where isDistance (Distance from to _ _) = i == from && j == to
 
 
-getCapacityById :: [Facility] -> Int -> Maybe Double
+getCapacityById :: Facilities -> Int -> Maybe Double
 getCapacityById fs i = u <$> find (\f -> facilityId f == i) fs
 
-getDemandById :: [Client] -> Int -> Maybe Double
+getDemandById :: Clients -> Int -> Maybe Double
 getDemandById cs j = d <$> find (\c -> clientId c == j) cs
 
 getDistanceById :: Distances -> FacilityId -> ClientId -> Maybe Double
