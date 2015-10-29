@@ -89,6 +89,11 @@ showCFLP cflp = (showFacilities $ facilities cflp) ++ "\n\n"
 
 instance Show CFLP where
   show = showCFLP
+
+isFeasible :: CFLP -> Bool
+isFeasible (CFLP fs cs _) = (sum $ map u fs) >= (sum $ map d cs)
+
+
 -- | Accessors
 
 findClient :: Clients -> Int -> Maybe Client

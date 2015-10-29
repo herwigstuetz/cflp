@@ -116,9 +116,6 @@ createClientsFromList list = runIdManagement $ mapM createClient list
 createDistanceFromList :: [Facility] -> [Client] -> [(Int, Int, Double)] -> Maybe [Distance]
 createDistanceFromList fac clients = mapM (createDistance fac clients)
 
-isFeasible :: CFLP -> Bool
-isFeasible (CFLP fs cs _) = (sum $ map u fs) >= (sum $ map d cs)
-
 randomFacilities :: Int -> IO Facilities
 randomFacilities n =
   do let range = (0.0, 100.0)
