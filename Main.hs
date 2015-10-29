@@ -649,6 +649,18 @@ getOpenedFacilitiesFromSNCFLPs cflp sncflps = fs
 
 solMip :: CFLP -> IO ()
 solMip cflp = withEnv $ \env -> do
+fromOpenedCFLP :: CFLP -> MIP
+fromOpenedCFLP cflp = let s = CPX_MIN
+                          o = mcfObj cflp
+--                          n = length $ facilities cflp
+--                          m = length $ clients cflp
+                          r = mcfRhs cflp
+                          a = mcfConstraints cflp
+                          b = mcfBnds cflp
+                          t = mcfTypes cflp
+                      in
+                        MIP s o r a b t
+
   setIntParam env CPX_PARAM_DATACHECK cpx_ON
   setIntParam env CPX_PARAM_SCRIND cpx_ON
   withLp env "CFLP" $ \lp -> do
