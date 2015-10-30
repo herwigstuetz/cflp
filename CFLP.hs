@@ -6,6 +6,11 @@ import           Data.Function
 import           Data.List     (find, group, sort, sortBy, (\\))
 import           Text.Printf
 
+import qualified Data.Vector   as V
+
+import           CPLEX
+import           MIP
+
 type FacilityId = Int
 data Facility = Facility { facilityId :: FacilityId
                          , f          :: Double -- opening cost
@@ -119,3 +124,90 @@ getDistanceById :: Distances -> FacilityId -> ClientId -> Maybe Double
 getDistanceById ds i j = c <$> find (\(Distance s t _ _) -> i == s && j == t) ds
 
 
+
+
+
+-- | CFLP -> LP
+
+createObjFromCFLP :: CFLP -> [Double]
+createObjFromCFLP (CFLP fac clients dists) =
+  [f | (Facility _ f _ _) <- fac]
+
+createObjIndexedListFromCFLP :: CFLP -> Maybe [(Int, Int, Double)]
+createObjIndexedListFromCFLP cflp@(CFLP _ cs ds) =
+  sequence [seqTuple (i, j, (*) <$> demandOf j <*> Just c) | (Distance i j c _) <- ds]
+  where demandOf :: Int -> Maybe Double
+        demandOf j = d <$> findClient cs j
+
+sortObjList :: [(Int, Int, a)] -> [(Int, Int, a)]
+sortObjList = sortBy f
+  where f (i1, j1, _) (i2, j2, _) | j1 == j2 && i1 == i2 = EQ
+                                  | j1 < j2 = LT
+                                  | j1 == j2 && i1 < i2 = LT
+                                  | otherwise = GT
+
+createObj :: CFLP -> Maybe (V.Vector Double)
+createObj p@(CFLP fs cs ds) = do
+  let f (_,_,d) = d
+  ys <- return $ createObjFromCFLP p
+  xs <- createObjIndexedListFromCFLP p
+  return $ V.fromList $ ys ++ map f (sortObjList xs)
+
+
+xIdx n m i j  | (0 <= i) && (i < n) && (0 <= j) && (j < m) = n + (j*n + i)
+yIdx n m i    | (0 <= i) && (i < n)                        =            i
+
+ctr1 :: Int -> Int -> [[(Int, Double)]]
+ctr1 n m = [ [(xIdx n m i j, 1.0) | i <- [0..n-1]] | j <- [0..m-1] ]
+
+ctr2 :: Int -> Int -> [[(Int, Double)]]
+ctr2 n m = [ [(yIdx n m i, -1.0), (xIdx n m i j, 1.0)] | i <- [0..n-1], j <- [0..m-1] ]
+
+ctr3 :: Facilities -> Clients -> Int -> Int -> [[(Int, Double)]]
+ctr3 fs cs n m = [ [(xIdx n m i j, dj)
+                  | j <- [0..m-1], let Just dj = getDemandById cs j ]
+                  ++ [(yIdx n m i, -ui)]
+                | i <- [0..n-1], let Just ui = getCapacityById fs i]
+
+seqTuple :: (a, b, Maybe c) -> Maybe (a, b, c)
+seqTuple (a, b, Just c) = Just (a, b, c)
+seqTuple (_, _, Nothing) = Nothing
+
+fromConstraints :: [[(Int, Double)]] -> [(Row, Col, Double)]
+fromConstraints l = map (\(r,c,x) -> (Row r, Col c, x)) (concatMap f $ zip [0..] l)
+  where f (r, l) = map (\(c, x) -> (r, c, x)) l
+
+constraints fs cs n m = do
+  Just $ fromConstraints $ (ctr1 n m) ++ (ctr2 n m) ++ (ctr3 fs cs n m)
+
+rhs1 n m = [G 1.0 | j <- [0..m-1]]
+rhs2 n m = [L 0.0 | i <- [0..n-1], j <- [0..m-1]]
+rhs3 n m = [L 0.0 | i <- [0..n-1]]
+
+createRhs :: Int -> Int -> V.Vector Sense
+createRhs n m = V.fromList $ rhs1 n m ++ rhs2 n m ++ rhs3 n m
+
+ybnds :: Int -> Int -> [(Maybe Double, Maybe Double)]
+ybnds n m = [(Just 0.0, Just 1.0) | i <- [0..n-1]]
+
+xbnds :: Int -> Int -> [(Maybe Double, Maybe Double)]
+xbnds n m = [(Just 0.0, Nothing) | i <- [0..n-1], j <- [0..m-1]]
+
+bnds :: Int -> Int -> V.Vector (Maybe Double, Maybe Double)
+bnds n m = V.fromList $ ybnds n m ++ xbnds n m
+
+varTypes :: Int -> Int -> V.Vector Type
+varTypes n m = V.fromList $ replicate (length $ ybnds n m) CPX_BINARY
+               ++ replicate (length $ xbnds n m) CPX_CONTINUOUS
+
+fromCFLP :: CFLP -> Maybe MIP
+fromCFLP cflp = let s = CPX_MIN
+                    o = createObj cflp
+                    n = length $ facilities cflp
+                    m = length $ clients cflp
+                    r = createRhs n m
+                    a = constraints (facilities cflp) (clients cflp) n m
+                    b = bnds n m
+                    t = varTypes n m
+                in
+                  MIP s <$> o <*> Just r <*> a <*> Just b <*> Just t
