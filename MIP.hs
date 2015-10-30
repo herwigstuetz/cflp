@@ -6,6 +6,8 @@ import           Data.List   (find, group, intercalate, sort)
 import           Data.Maybe  (fromMaybe)
 import qualified Data.Vector as V
 
+import           Foreign.C
+
 import           CPLEX
 import           CPLEX.Param
 
@@ -16,6 +18,11 @@ data MIP = MIP { sense  :: ObjSense
                , bnd    :: V.Vector (Maybe Double, Maybe Double)
                , ctypes :: V.Vector Type
                } deriving (Show)
+
+cpx_ON :: CInt
+cpx_ON  =  1
+cpx_OFF :: Integer
+cpx_OFF =  0
 
 runLp :: MIP -> CpxEnv -> CpxLp -> IO (Maybe String)
 runLp (MIP sense obj rhs amat bnd _) cpxEnv cpxLp =
@@ -47,3 +54,55 @@ showLP (MIP sense obj rhs amat bnd _) = showObjSense sense
                                         ++ showObj obj
                                         ++ "\n"
                                         ++ showAMat amat rhs
+
+solMip :: String -> MIP -> IO (CpxSolution)
+solMip name p = withEnv $ \env -> do
+  setIntParam env CPX_PARAM_DATACHECK cpx_ON
+  setIntParam env CPX_PARAM_SCRIND cpx_ON
+  withLp env name $ \mip -> do
+    putStrLn $ "Solving " ++ name ++ ":"
+
+    statusMip <- runMip p env mip
+
+    case statusMip of
+      Nothing -> return ()
+      Just msg -> error $ "CPXcopylp error: " ++ msg
+    putStrLn $ "Solving " ++ name ++ ":"
+
+    -- Solve problem
+    statusOpt <- mipopt env mip
+    case statusOpt of
+      Nothing -> return ()
+      Just msg -> error $ "CPXlpopt error: " ++ msg
+    putStrLn $ "Solving " ++ name ++ ":"
+
+    -- Retrieve solution
+    statusSol <- getMIPSolution env mip
+    case statusSol of Left msg -> error msg
+                      Right sol -> return sol
+
+solLp :: String -> MIP -> IO (CpxSolution)
+solLp name p = withEnv $ \env -> do
+  setIntParam env CPX_PARAM_DATACHECK cpx_ON
+  setIntParam env CPX_PARAM_SCRIND cpx_ON
+  withLp env name $ \lp -> do
+    putStrLn $ "Solving " ++ name ++ ":"
+
+    statusLp <- runLp p env lp
+
+    case statusLp of
+      Nothing -> return ()
+      Just msg -> error $ "CPXcopylp error: " ++ msg
+    putStrLn $ "Solving " ++ name ++ ":"
+
+    -- Solve problem
+    statusOpt <- lpopt env lp
+    case statusOpt of
+      Nothing -> return ()
+      Just msg -> error $ "CPXlpopt error: " ++ msg
+    putStrLn $ "Solving " ++ name ++ ":"
+
+    -- Retrieve solution
+    statusSol <- getSolution env lp
+    case statusSol of Left msg -> error msg
+                      Right sol -> return sol
