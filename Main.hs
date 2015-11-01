@@ -170,8 +170,8 @@ satisfy :: Distance -> Double -> Distance
 satisfy d x = d { x = x }
 
 satisfyDemand :: Distances -> [Double] -> Distances
-satisfyDemand ds xs = let fIds = map head (group . sort $ map (\(i, _, _, _) -> i) ds)
-                          cIds = map head (group . sort $ map (\(_, j, _, _) -> j) ds)
+satisfyDemand ds xs = let fIds = map head (group . sort $ map (\(Distance i _ _ _) -> i) ds)
+                          cIds = map head (group . sort $ map (\(Distance _ j _ _) -> j) ds)
                           findD i j = find (\(Distance s t _ _) -> i == s && j == t)
                       in zipWith satisfy (traceMsgId "cij: " [fromJust $ findD i j ds | j <- cIds, i <- fIds]) (traceMsgId "xij: " xs)
 
