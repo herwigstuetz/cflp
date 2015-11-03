@@ -4,6 +4,7 @@ module Main where
 
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
+import           Data.Array
 import           Data.Function
 import           Data.List                 (find, group, intercalate, maximumBy,
                                             minimumBy, sort, sortBy, splitAt,
@@ -134,8 +135,8 @@ randomDistances n m =
      h <- newStdGen
      let f = zip [0,1..] $ take n $ uncurry zip $ splitAt n (randomRs range g)
      let c = zip [0,1..] $ take m $ uncurry zip $ splitAt m (randomRs range h)
-     return [ Distance i j (sqrt ((cx-fx)**2 + (cy-fy)**2)) 0.0 | (i, (fx,fy)) <- f
-                                                                , (j, (cx,cy)) <- c]
+     return $ array ((0,n),(0,m)) [ ((i, j), Distance i j (sqrt ((cx-fx)**2 + (cy-fy)**2)) 0.0) | (i, (fx,fy)) <- f
+                                                                                            , (j, (cx,cy)) <- c]
 
 randomCFLP :: Int -> Int -> IO CFLP
 randomCFLP n m =
@@ -170,10 +171,15 @@ satisfy :: Distance -> Double -> Distance
 satisfy d x = d { x = x }
 
 satisfyDemand :: Distances -> [Double] -> Distances
-satisfyDemand ds xs = let fIds = map head (group . sort $ map (\(Distance i _ _ _) -> i) ds)
-                          cIds = map head (group . sort $ map (\(Distance _ j _ _) -> j) ds)
-                          findD i j = find (\(Distance s t _ _) -> i == s && j == t)
-                      in zipWith satisfy (traceMsgId "cij: " [fromJust $ findD i j ds | j <- cIds, i <- fIds]) (traceMsgId "xij: " xs)
+satisfyDemand ds xs = ds // (map (\ ((i, j), Distance _ _ c x)
+                                  -> ((i, j), Distance i j c (xs !! (xIdx n m i j)))) (assocs ds))
+  where n = fst . snd $ bounds ds
+        m = snd . snd $ bounds ds
+
+  -- let fIds = map head (group . sort $ map (\(Distance i _ _ _) -> i) ds)
+  --                         cIds = map head (group . sort $ map (\(Distance _ j _ _) -> j) ds)
+  --                         findD i j = find (\(Distance s t _ _) -> i == s && j == t)
+  --                     in zipWith satisfy (traceMsgId "cij: " [fromJust $ findD i j ds | j <- cIds, i <- fIds]) (traceMsgId "xij: " xs)
 
 assignFacilitiesMCF :: CFLP -> CpxSolution -> CFLP
 assignFacilitiesMCF mcf sol = mcf { distances = satisfyDemand (distances mcf) (VS.toList (solX sol)) }
@@ -226,7 +232,9 @@ calculateBj cluster cflp j = bj
                 , maybeToGuard $ isNearer <$> (getDistanceById ds i j) <*> sequence [getDistanceById ds i k | k <- ks]]
 
 getXs :: Distances -> [FacilityId] -> [ClientId] -> [Double]
-getXs ds is js = map x $ filter (\(Distance i j _ _) -> i `elem` is && j `elem` js) ds
+getXs ds is js = [ x $ ds!(i,j) | i <- is, j <- js]
+
+-- map x $ filter (\(Distance i j _ _) -> i `elem` is && j `elem` js) ds
 
 
 getPossibleCenters :: CFLP -> [Cluster] -> [ClientId]
@@ -247,8 +255,10 @@ c1 cflp sol c s  = (traceMsgId "c1   : " $ formCluster c cflp s (getBudget cflp 
 
 -- Step C2
 
-facilityDistances :: CFLP -> FacilityId -> Distances
-facilityDistances cflp i = filter (\(Distance r s _ _) -> i == r) (distances cflp)
+facilityDistances :: CFLP -> FacilityId -> [Distance]
+facilityDistances cflp i = [ ds!(i,j) | j <- [0..length $ clients cflp] ]
+  where ds = distances cflp
+--  filter (\(Distance r s _ _) -> i == r) (distances cflp)
 
 nearestClient :: CFLP -> FacilityId -> ClientId
 nearestClient cflp i = j $ minimumBy (compare `on` c) dists
@@ -405,15 +415,15 @@ sol cflp = do
 
   let openedCFLP = CFLP (filter (\f -> facilityId f `elem` openedIds) (facilities cflp))
                         (clients cflp)
-                        (filter (\d -> i d `elem` openedIds) (distances cflp))
+                        (array (bounds $ distances cflp) (filter (\(_, d) -> i d `elem` openedIds) (assocs $ distances cflp)))
 
 
   let mcf = fromOpenedCFLP openedCFLP
   print $ obj mcf
   putStr $ showAmat (amat mcf)
 
-  print openedCFLP
-  print mcf
+--  print openedCFLP
+--  print mcf
   mcfSol <- solLp "MCF" mcf
 
   print $ solX mcfSol

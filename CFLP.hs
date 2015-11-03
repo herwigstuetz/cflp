@@ -2,14 +2,18 @@
 
 module CFLP where
 
+import           Data.Array
 import           Data.Function
-import           Data.List     (find, group, sort, sortBy, (\\))
+import           Data.List       (find, group, sort, sortBy, (\\))
+import           Data.Tuple
 import           Text.Printf
 
-import qualified Data.Vector   as V
+import qualified Data.Vector     as V
 
 import           CPLEX
 import           MIP
+
+import           Test.QuickCheck
 
 type FacilityId = Int
 data Facility = Facility { facilityId :: FacilityId
@@ -33,7 +37,13 @@ data Distance = Distance { i :: FacilityId
                          , x :: Double -- fraction satisfied
                          } deriving (Show)
 
-type Distances = [Distance]
+--type Distances = [Distance]
+
+-- data Distance = Distance { c :: Double -- cost
+--                          , x :: Double -- fraction satisfied
+--                          } deriving (Show)
+
+type Distances = Array (FacilityId, ClientId) Distance
 
 data CFLP = CFLP { facilities :: Facilities
                  , clients    :: Clients
@@ -67,26 +77,15 @@ showDemands cs = showFormat "d_j: " d cs
 showClients cs = (showClientIds cs) ++ "\n" ++
                  (showDemands cs)
 
-showCosts :: Distances -> String
-showCosts ds = showFormat ("f_" ++ show (i (ds !! 0)) ++ ": ") c ds
 
-showFlow :: Distances -> String
-showFlow ds = showFormat ("f_" ++ show (i (ds !! 0)) ++ ": ") x ds
+showDistanceTable arr acc =
+  unlines $ map (unwords . map (show . acc . (arr !))) indices
+  where indices = [[(x, y) | x <- [startX..endX]] | y <- [startY..endY]]
+        ((startX, startY), (endX, endY)) = bounds arr
 
-distancesFromFacility ds i' = sortBy (compare `on` j) $ [distance | distance <- ds, i distance == i']
-distancesToClient ds j' = sortBy (compare `on` i) $ [distance | distance <- ds, j distance == j']
-
-showDistancesElement :: (Distances -> String) -> Distances -> String
-showDistancesElement selector ds = ("    " ++ (unwords $ map (printf "  c_%d") cs))
+showDistances ds = showDistanceTable ds c
                    ++ "\n" ++
-                   (unlines $ map selector [distancesFromFacility ds i | i <- fs])
-  where
-    fs = map head (group . sort $ map i ds)
-    cs = map head (group . sort $ map j ds)
-
-showDistances ds = (showDistancesElement showCosts ds)
-                   ++ "\n" ++
-                   (showDistancesElement showFlow ds)
+                   showDistanceTable ds x
 
 showCFLP cflp = (showFacilities $ facilities cflp) ++ "\n\n"
                 ++ (showClients $ clients cflp) ++ "\n\n"
@@ -133,9 +132,13 @@ createObjFromCFLP :: CFLP -> [Double]
 createObjFromCFLP (CFLP fac clients dists) =
   [f | (Facility _ f _ _) <- fac]
 
+seqTuple :: (a, b, Maybe c) -> Maybe (a, b, c)
+seqTuple (a, b, Just c) = Just (a, b, c)
+seqTuple (_, _, Nothing) = Nothing
+
 createObjIndexedListFromCFLP :: CFLP -> Maybe [(Int, Int, Double)]
 createObjIndexedListFromCFLP cflp@(CFLP _ cs ds) =
-  sequence [seqTuple (i, j, (*) <$> demandOf j <*> Just c) | (Distance i j c _) <- ds]
+  sequence [seqTuple (i, j, (*) <$> demandOf j <*> Just c) | (Distance i j c _) <- elems ds]
   where demandOf :: Int -> Maybe Double
         demandOf j = d <$> findClient cs j
 
@@ -154,8 +157,18 @@ createObj p@(CFLP fs cs ds) = do
   return $ V.fromList $ ys ++ map f (sortObjList xs)
 
 
+xIdx :: Int -> Int -> Int -> Int -> Int
 xIdx n m i j  | (0 <= i) && (i < n) && (0 <= j) && (j < m) = n + (j*n + i)
+
+yIdx :: Int -> Int -> Int -> Int
 yIdx n m i    | (0 <= i) && (i < n)                        =            i
+
+xIdx' :: Int -> Int -> Int -> (Int, Int)
+xIdx' n m k | (n <= k) && (k < n*m) = swap $ divMod (k-n) n
+
+yIdx' :: Int -> Int -> Int -> Int
+yIdx' n m k | (0 <= k) && (k < n)   = k
+
 
 ctr1 :: Int -> Int -> [[(Int, Double)]]
 ctr1 n m = [ [(xIdx n m i j, 1.0) | i <- [0..n-1]] | j <- [0..m-1] ]
@@ -168,10 +181,6 @@ ctr3 fs cs n m = [ [(xIdx n m i j, dj)
                   | j <- [0..m-1], let Just dj = getDemandById cs j ]
                   ++ [(yIdx n m i, -ui)]
                 | i <- [0..n-1], let Just ui = getCapacityById fs i]
-
-seqTuple :: (a, b, Maybe c) -> Maybe (a, b, c)
-seqTuple (a, b, Just c) = Just (a, b, c)
-seqTuple (_, _, Nothing) = Nothing
 
 fromConstraints :: [[(Int, Double)]] -> [(Row, Col, Double)]
 fromConstraints l = map (\(r,c,x) -> (Row r, Col c, x)) (concatMap f $ zip [0..] l)

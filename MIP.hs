@@ -19,6 +19,17 @@ data MIP = MIP { sense  :: ObjSense
                , ctypes :: V.Vector Type
                } deriving (Show)
 
+
+class ToMip a where
+  toMip :: a -> MIP
+
+class FromMip a where
+  fromMip :: MIP -> a
+
+class (ToMip a, FromMip a) => MipSolvable a where
+  solve :: a -> a
+  solve = fromMip . toMip
+
 cpx_ON :: CInt
 cpx_ON  =  1
 cpx_OFF :: Integer
