@@ -120,8 +120,8 @@ getDemandById :: Clients -> Int -> Maybe Double
 getDemandById cs j = d <$> find (\c -> clientId c == j) cs
 
 getDistanceById :: Distances -> FacilityId -> ClientId -> Maybe Double
-getDistanceById ds i j = c <$> find (\(Distance s t _ _) -> i == s && j == t) ds
-
+--getDistanceById ds i j = c <$> find (\(Distance s t _ _) -> i == s && j == t) ds
+getDistanceById ds i j = Just . c $ ds!(i,j)
 
 
 
@@ -159,6 +159,7 @@ createObj p@(CFLP fs cs ds) = do
 
 xIdx :: Int -> Int -> Int -> Int -> Int
 xIdx n m i j  | (0 <= i) && (i < n) && (0 <= j) && (j < m) = n + (j*n + i)
+xIdx n m i j  | otherwise = error $ show (i, j) ++ " out of bounds " ++ show (n, m)
 
 yIdx :: Int -> Int -> Int -> Int
 yIdx n m i    | (0 <= i) && (i < n)                        =            i

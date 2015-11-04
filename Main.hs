@@ -135,8 +135,8 @@ randomDistances n m =
      h <- newStdGen
      let f = zip [0,1..] $ take n $ uncurry zip $ splitAt n (randomRs range g)
      let c = zip [0,1..] $ take m $ uncurry zip $ splitAt m (randomRs range h)
-     return $ array ((0,n),(0,m)) [ ((i, j), Distance i j (sqrt ((cx-fx)**2 + (cy-fy)**2)) 0.0) | (i, (fx,fy)) <- f
-                                                                                            , (j, (cx,cy)) <- c]
+     return $ array ((0,0),(n-1,m-1)) [ ((i, j), Distance i j (sqrt ((cx-fx)**2 + (cy-fy)**2)) 0.0) | (i, (fx,fy)) <- f
+                                                                                                    , (j, (cx,cy)) <- c]
 
 randomCFLP :: Int -> Int -> IO CFLP
 randomCFLP n m =
@@ -157,7 +157,7 @@ openFacilitiesCFLP cflp sol = cflp { facilities = openFacilities (facilities cfl
                                    , distances = satisfyDemand (distances cflp) xs
                                    }
   where n = length $ facilities cflp
-        ys = take n $ VS.toList (solX sol)
+        ys = take n $ VS.toList (solX (traceMsgId "sol " sol))
         xs = drop n $ VS.toList (solX sol)
 
 getBudget :: CFLP -> CpxSolution -> [Double]
@@ -170,11 +170,13 @@ openFacilities = zipWith openFacility
 satisfy :: Distance -> Double -> Distance
 satisfy d x = d { x = x }
 
+inc = (+) 1
+
 satisfyDemand :: Distances -> [Double] -> Distances
-satisfyDemand ds xs = ds // (map (\ ((i, j), Distance _ _ c x)
-                                  -> ((i, j), Distance i j c (xs !! (xIdx n m i j)))) (assocs ds))
-  where n = fst . snd $ bounds ds
-        m = snd . snd $ bounds ds
+satisfyDemand ds xs = (traceMsgId "satDem" ds) // (map (\ ((i, j), Distance _ _ c x)
+                                  -> ((i, j), Distance i j c ((traceMsgId "xs " xs) !! ((xIdx n m i j) - n)))) (assocs ds))
+  where n = inc . fst . snd $ bounds ds
+        m = inc . snd . snd $ bounds ds
 
   -- let fIds = map head (group . sort $ map (\(Distance i _ _ _) -> i) ds)
   --                         cIds = map head (group . sort $ map (\(Distance _ j _ _) -> j) ds)
@@ -256,7 +258,7 @@ c1 cflp sol c s  = (traceMsgId "c1   : " $ formCluster c cflp s (getBudget cflp 
 -- Step C2
 
 facilityDistances :: CFLP -> FacilityId -> [Distance]
-facilityDistances cflp i = [ ds!(i,j) | j <- [0..length $ clients cflp] ]
+facilityDistances cflp i = [ ds!(i,j) | j <- [0..(length $ clients cflp) - 1] ]
   where ds = distances cflp
 --  filter (\(Distance r s _ _) -> i == r) (distances cflp)
 
@@ -283,7 +285,7 @@ c2 cflp clusters = updateCluster facilityAssignment clusters
 
 
 traceMsgId :: Show a => String -> a -> a
-traceMsgId msg val = val --trace (msg ++ show val) val
+traceMsgId msg val = trace (msg ++ show val) val
 
 
 -- Reducing to single node
