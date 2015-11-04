@@ -154,7 +154,7 @@ getSol sol f = sol VS.! facilityId f
 
 openFacilitiesCFLP :: CFLP -> CpxSolution -> CFLP
 openFacilitiesCFLP cflp sol = cflp { facilities = openFacilities (facilities cflp) ys
-                                   , distances = satisfyDemand (distances cflp) xs
+                                   , distances = satisfyDemand cflp xs
                                    }
   where n = length $ facilities cflp
         ys = take n $ VS.toList (solX (traceMsgId "sol " sol))
@@ -172,11 +172,15 @@ satisfy d x = d { x = x }
 
 inc = (+) 1
 
-satisfyDemand :: Distances -> [Double] -> Distances
-satisfyDemand ds xs = (traceMsgId "satDem" ds) // (map (\ ((i, j), Distance _ _ c x)
-                                  -> ((i, j), Distance i j c ((traceMsgId "xs " xs) !! ((xIdx n m i j) - n)))) (assocs ds))
-  where n = inc . fst . snd $ bounds ds
-        m = inc . snd . snd $ bounds ds
+satisfyDemand :: CFLP -> [Double] -> Distances
+satisfyDemand mcf xs = ds // (map (\ ((i, j), Distance i' j' c x)
+                                  -> ((i, j), Distance i' j' c (xs !! (mcfXIdx n m (Map.findWithDefault 0 i fIds') j))))
+                              (traceMsgId "filt: " $ ((filter (\((i, j), _) -> i `elem` fIds)) (assocs ds))))
+  where ds = distances mcf
+        fIds = traceMsgId "fids: " $ map facilityId $ facilities mcf
+        fIds' = Map.fromList $ zip fIds [0..]
+        n = length $ facilities mcf --inc . fst . snd $ bounds ds
+        m = length $ clients mcf --inc . snd . snd $ bounds ds
 
   -- let fIds = map head (group . sort $ map (\(Distance i _ _ _) -> i) ds)
   --                         cIds = map head (group . sort $ map (\(Distance _ j _ _) -> j) ds)
@@ -184,7 +188,7 @@ satisfyDemand ds xs = (traceMsgId "satDem" ds) // (map (\ ((i, j), Distance _ _ 
   --                     in zipWith satisfy (traceMsgId "cij: " [fromJust $ findD i j ds | j <- cIds, i <- fIds]) (traceMsgId "xij: " xs)
 
 assignFacilitiesMCF :: CFLP -> CpxSolution -> CFLP
-assignFacilitiesMCF mcf sol = mcf { distances = satisfyDemand (distances mcf) (VS.toList (solX sol)) }
+assignFacilitiesMCF mcf sol = mcf { distances = satisfyDemand mcf (VS.toList (solX sol)) }
 
 -- Clustering
 
@@ -417,7 +421,8 @@ sol cflp = do
 
   let openedCFLP = CFLP (filter (\f -> facilityId f `elem` openedIds) (facilities cflp))
                         (clients cflp)
-                        (array (bounds $ distances cflp) (filter (\(_, d) -> i d `elem` openedIds) (assocs $ distances cflp)))
+                        (distances cflp)
+--                        (array (bounds $ distances cflp) (map (\(_, d) -> i d `elem` openedIds) (assocs $ distances cflp)))
 
 
   let mcf = fromOpenedCFLP openedCFLP
@@ -429,6 +434,7 @@ sol cflp = do
   mcfSol <- solLp "MCF" mcf
 
   print $ solX mcfSol
+
   let openedMcf = assignFacilitiesMCF openedCFLP mcfSol
   print openedMcf
   print "Total Cost: "

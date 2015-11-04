@@ -15,7 +15,11 @@ mcfXIdx n m i j | (0 <= i) && (i < n) && (0 <= j) && (j < m) =      j*n + i
 
 -- ERROR: mixing of i=0..n-1 and i in facilityIds (!= 0..n-1)
 mcfObj :: CFLP -> V.Vector Double
-mcfObj cflp = V.fromList $ map snd $ sortBy (compare `on` fst) [ (mcfXIdx n m i j, dj * cij) | (i, fId) <- zip [0..n-1] fIds, (j, cId) <- zip [0..m-1] cIds, let Just cij = getDistanceById ds fId cId, let Just dj = getDemandById cs cId]
+mcfObj cflp = V.fromList $ map snd $ sortBy (compare `on` fst)
+                                            [ (mcfXIdx n m i j, dj * cij) | (i, fId) <- zip [0..n-1] fIds
+                                                                          , (j, cId) <- zip [0..m-1] cIds
+                                                                          , let Just cij = getDistanceById ds fId cId
+                                                                          , let Just dj = getDemandById cs cId]
   where n = length $ facilities cflp
         m = length $ clients cflp
         cs = clients cflp
