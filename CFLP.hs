@@ -89,6 +89,24 @@ showCFLP cflp = (showFacilities $ facilities cflp) ++ "\n\n"
                 ++ (showClients $ clients cflp) ++ "\n\n"
                 ++ (showDistances $ distances cflp)
 
+
+showFacilities' fs = (unwords $ map (show . facilityId) fs) ++ "\n" ++
+                     (unwords $ map (show . f) fs) ++ "\n" ++
+                     (unwords $ map (show . u) fs) ++ "\n"
+
+showClients' cs = (unwords $ map (show . clientId) cs) ++ "\n" ++
+                  (unwords $ map (show . d) cs) ++ "\n"
+
+showDistances' ds = unlines [unwords [show $ ds!(i,j) | j <- [0..m]] | i <- [0..n]]
+  where (n,m) = snd . bounds $ ds
+
+showCFLP' cflp = (show . length . facilities $ cflp) ++ "\n" ++
+                 (showFacilities' $ facilities $ cflp) ++ "\n\n" ++
+                 (show . length . clients $ cflp) ++ "\n" ++
+                 (showClients' $ clients $ cflp) ++ "\n\n" ++
+                 (showDistances' . distances $ cflp) ++ "\n"
+
+
 instance Show CFLP where
   show = showCFLP
 
