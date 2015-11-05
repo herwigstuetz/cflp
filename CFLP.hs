@@ -4,16 +4,14 @@ module CFLP where
 
 import           Data.Array
 import           Data.Function
-import           Data.List       (find, group, sort, sortBy, (\\))
+import           Data.List     (find, group, sort, sortBy, (\\))
 import           Data.Tuple
 import           Text.Printf
 
-import qualified Data.Vector     as V
+import qualified Data.Vector   as V
 
 import           CPLEX
 import           MIP
-
-import           Test.QuickCheck
 
 type FacilityId = Int
 data Facility = Facility { facilityId :: FacilityId
