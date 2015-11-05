@@ -174,7 +174,7 @@ inc = (+) 1
 
 satisfyDemand :: CFLP -> [Double] -> Distances
 satisfyDemand mcf xs = ds // (map (\ ((i, j), Distance i' j' c x)
-                                  -> ((i, j), Distance i' j' c (xs' ! (mcfXIdx n m (Map.findWithDefault 0 i fIds') j))))
+                                  -> ((i, j), Distance i' j' c (xs' V.! (mcfXIdx n m (Map.findWithDefault 0 i fIds') j))))
                               (traceMsgId "filt: " $ [ ((i,j), ds!(i,j)) | i <- fIds, j <- cIds ])) --((filter (\((i, j), _) -> i `elem` fIds)) (assocs ds))))
   where ds = distances mcf
         fIds = traceMsgId "fids: " $ map facilityId $ facilities mcf
