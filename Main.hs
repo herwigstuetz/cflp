@@ -175,17 +175,45 @@ inc = (+) 1
 satisfyDemand :: CFLP -> [Double] -> Distances
 satisfyDemand mcf xs = ds // (map (\ ((i, j), Distance i' j' c x)
                                   -> ((i, j), Distance i' j' c (xs !! (mcfXIdx n m (Map.findWithDefault 0 i fIds') j))))
-                              (traceMsgId "filt: " $ ((filter (\((i, j), _) -> i `elem` fIds)) (assocs ds))))
+                              (traceMsgId "filt: " $ [ ds!(i,j) | i <- fIds, j <- cIds ])) --((filter (\((i, j), _) -> i `elem` fIds)) (assocs ds))))
   where ds = distances mcf
         fIds = traceMsgId "fids: " $ map facilityId $ facilities mcf
+        cIds = map clientId $ clients mcf
         fIds' = Map.fromList $ zip fIds [0..]
         n = length $ facilities mcf --inc . fst . snd $ bounds ds
         m = length $ clients mcf --inc . snd . snd $ bounds ds
 
-  -- let fIds = map head (group . sort $ map (\(Distance i _ _ _) -> i) ds)
-  --                         cIds = map head (group . sort $ map (\(Distance _ j _ _) -> j) ds)
-  --                         findD i j = find (\(Distance s t _ _) -> i == s && j == t)
-  --                     in zipWith satisfy (traceMsgId "cij: " [fromJust $ findD i j ds | j <- cIds, i <- fIds]) (traceMsgId "xij: " xs)
+satisfyDemand' :: CFLP -> [Double] -> Distances
+satisfyDemand' mcf xs = do
+  let
+    -- old  array elements
+    ds = distances mcf
+
+    n = length $ facilities mcf
+    m = length $ clients mcf
+
+    -- get facility ids
+    fIds = map facilityId $ facilities mcf
+
+    -- get client ids
+    cIds = map clientId $ clients mcf
+
+    -- mapping from facilityIds to array index
+    fIds' = Map.fromList $ zip fIds [0..]
+
+    -- get distances from open facilities
+    as = [ ds!(i,j) | i <- fIds, j <- cIds ]
+--    as  = filter (\((i, _), _) -> i `elem` fIds) (assocs ds)
+
+    -- update fn
+    updatedX :: Int -> Int -> Double
+    updatedX i j = xs !! (mcfXIdx n m (fIds' Map.! i) j)
+
+    -- make updated array elements
+    ds' = map (\ ((i, j), dist) -> ((i, j), dist { x = updatedX i j })) as
+    in ds // ds'
+
+
 
 assignFacilitiesMCF :: CFLP -> CpxSolution -> CFLP
 assignFacilitiesMCF mcf sol = mcf { distances = satisfyDemand mcf (VS.toList (solX sol)) }
