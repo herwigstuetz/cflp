@@ -67,11 +67,13 @@ main = do
     ("read" : fileName : _) -> do
       cflp <- readFile fileName
       let cflp' = parse cflpFile "cflp" cflp
-      case cflp' of Left msg -> print msg
-                    Right cflp'' -> do
-                      if not $ isFeasible cflp''
-                        then error "CFLP not feasible"
-                        else sol cflp''
+      case cflp' of
+        Left msg -> print msg
+        Right cflp'' -> do
+          if not $ isFeasible cflp''
+            then error "CFLP not feasible"
+            else do cflp''' <- sol cflp''
+                    return ()
 
     ("read-mip" : fileName : _) -> do
       cflp <- readFile fileName
@@ -89,9 +91,8 @@ main = do
       let n' = read n :: Int
           m' = read m :: Int
       cflp <- getFeasibleRandomCFLP n' m'
-      sol cflp
-
---  putStrLn (showCFLPSolution cflp)
+      cflp' <- sol cflp
+      putStrLn (showCFLPSolution cflp')
 
 -- | Adapted from http://stackoverflow.com/questions/8901252/2d-array-in-haskell
 showTable arr =
@@ -402,7 +403,7 @@ getOpenedFacilitiesFromSNCFLPs cflp sncflps = fs
 
 -- Assign clients
 
-sol :: CFLP -> IO ()
+sol :: CFLP -> IO (CFLP)
 sol cflp = do
   lpSol <- solLp "CFLP" $ fromJust . fromCFLP $ cflp
 
@@ -469,3 +470,4 @@ sol cflp = do
   print $ (solObj mcfSol)
   print $ sum (map f (facilities cflp))
   print $ (solObj mcfSol) + sum (map f (facilities cflp))
+  return openedMcf
