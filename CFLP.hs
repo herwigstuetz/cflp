@@ -49,6 +49,45 @@ data CFLP = CFLP { facilities :: Facilities
             deriving (Eq)
 
 
+
+type IdManagement = State.State Int
+
+generateId :: IdManagement Int
+generateId = do
+  n <- State.get
+  State.put (n + 1)
+  return n
+
+createFacility :: (Double, Double) -> IdManagement Facility
+createFacility (f, u) = do
+  id <- generateId
+  return $ Facility id f u 0.0
+
+createClient :: Double -> IdManagement Client
+createClient d = do
+  id <- generateId
+  return $ Client id d
+
+createDistance :: [Facility] -> [Client] -> (Int, Int, Double) -> Maybe Distance
+createDistance fs cs (i, j, c) =
+  Distance <$> (facilityId <$> findFacility fs i)
+           <*> (clientId <$> findClient cs j)
+           <*> Just c
+           <*> Just 0.0
+
+runIdManagement :: IdManagement a -> a
+runIdManagement m = State.evalState m 0
+
+createFacilitiesFromList :: [(Double, Double)] -> [Facility]
+createFacilitiesFromList list = runIdManagement $ mapM createFacility list
+
+createClientsFromList :: [Double] -> [Client]
+createClientsFromList list = runIdManagement $ mapM createClient list
+
+createDistanceFromList :: [Facility] -> [Client] -> [(Int, Int, Double)] -> Maybe [Distance]
+createDistanceFromList fac clients = mapM (createDistance fac clients)
+
+
 showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f") $ map selector list)
 
 showFacilityIds :: Facilities -> String

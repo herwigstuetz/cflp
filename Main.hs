@@ -74,43 +74,6 @@ fromAmat amat = array ((0,0), (n,m)) [((i,j),0.0) | i<-[0..n], j<-[0..m]] // a
     a = map (\(Row i, Col j, x) -> ((i, j), x)) amat
 
 
-type IdManagement = State Int
-
-generateId :: IdManagement Int
-generateId = do
-  n <- get
-  put (n + 1)
-  return n
-
-createFacility :: (Double, Double) -> IdManagement Facility
-createFacility (f, u) = do
-  id <- generateId
-  return $ Facility id f u 0.0
-
-createClient :: Double -> IdManagement Client
-createClient d = do
-  id <- generateId
-  return $ Client id d
-
-createDistance :: [Facility] -> [Client] -> (Int, Int, Double) -> Maybe Distance
-createDistance fs cs (i, j, c) =
-  Distance <$> (facilityId <$> findFacility fs i)
-           <*> (clientId <$> findClient cs j)
-           <*> Just c
-           <*> Just 0.0
-
-runIdManagement :: IdManagement a -> a
-runIdManagement m = evalState m 0
-
-createFacilitiesFromList :: [(Double, Double)] -> [Facility]
-createFacilitiesFromList list = runIdManagement $ mapM createFacility list
-
-createClientsFromList :: [Double] -> [Client]
-createClientsFromList list = runIdManagement $ mapM createClient list
-
-createDistanceFromList :: [Facility] -> [Client] -> [(Int, Int, Double)] -> Maybe [Distance]
-createDistanceFromList fac clients = mapM (createDistance fac clients)
-
 randomFacilities :: Int -> IO Facilities
 randomFacilities n =
   do let range = (0.0, 100.0)
