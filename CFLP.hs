@@ -190,7 +190,7 @@ showsLines' (l : ls) s = l (foldr (\l s' -> '\n' : l s') s ls)
 
 showsFacilities fs s = showsLines' [showsWords' (map (shows . facilityId) fs),
                                     showsWords' (map (shows . f) fs),
-                                    showsWords' (map (shows . u) fs)] s
+                                    showsWords' (map (shows . u) fs)] ('\n' : s)
 
 showsFacilitiesSol fs s = showsLines' [showsWords' (map (shows . facilityId) fs),
                                        showsWords' (map (shows . y) fs)] s
@@ -198,7 +198,7 @@ showsFacilitiesSol fs s = showsLines' [showsWords' (map (shows . facilityId) fs)
 showsClients cs s = showsLines' [showsWords' (map (shows . clientId) cs),
                                  showsWords' (map (shows . d) cs)] ('\n' : s)
 
-showsDistances ds s = showsLines' [showsWords' [shows . c $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] s
+showsDistances ds s = showsLines' [showsWords' [shows . c $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] ('\n' : s)
   where (n,m) = snd . bounds $ ds
 
 showsDistancesSol ds s = showsLines' [showsWords' [shows . x $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] ('\n' : s)
