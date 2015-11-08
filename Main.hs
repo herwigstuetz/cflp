@@ -53,6 +53,7 @@ main = do
 
 --  writeFile "cflp.txt" (showCFLP' cflp)
   putStrLn (showCFLP' cflp)
+  putStrLn (showCFLP'' cflp)
   putStrLn (showCFLPSolution cflp)
   let cflp' = parse cflpFile "unknown" (showCFLP' cflp)
   case cflp' of Left msg -> print msg

@@ -170,6 +170,47 @@ showCFLPSolution cflp = (show . length . facilities $ cflp) ++ " " ++
                         (showFacilitiesSol . facilities $ cflp) ++ "\n" ++
                         (showDistancesSol . distances $ cflp) ++ "\n"
 
+-- | ShowS implementation
+
+showsWords :: (Show a) => [a] -> ShowS
+showsWords [w]       s = shows w s
+showsWords (w : ws)  s = shows w (foldr (\w' s -> ' ' : shows w' s) s ws)
+
+showsLines :: (Show a) => [[a]] -> ShowS
+showsLines [l]       s = showsWords l s
+showsLines (l : ls)  s = showsWords l (foldr (\l' s -> '\n' : showsWords l' s) s ls)
+
+showsWords' :: [ShowS] -> ShowS
+showsWords' [w] s      = w s
+showsWords' (w : ws) s = w (foldr (\w s' -> ' ' : w s') s ws)
+
+showsLines' :: [ShowS] -> ShowS
+showsLines' [l]      s = l s
+showsLines' (l : ls) s = l (foldr (\l s' -> '\n' : l s') s ls)
+
+showsFacilities fs s = showsLines' [showsWords' (map (shows . facilityId) fs),
+                                    showsWords' (map (shows . f) fs),
+                                    showsWords' (map (shows . u) fs)] s
+
+showsFacilitiesSol fs s = showsLines' [showsWords' (map (shows . facilityId) fs),
+                                       showsWords' (map (shows . y) fs)] s
+
+showsClients cs s = showsLines' [showsWords' (map (shows . clientId) cs),
+                                 showsWords' (map (shows . d) cs)] ('\n' : s)
+
+showsDistances ds s = showsLines' [showsWords' [shows . c $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] s
+  where (n,m) = snd . bounds $ ds
+
+showsDistancesSol ds s = showsLines' [showsWords' [shows . x $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] ('\n' : s)
+  where (n,m) = snd . bounds $ ds
+
+
+showCFLP'' cflp = showsLines' [shows . length . facilities $ cflp,
+                               showsFacilities . facilities $ cflp,
+                               shows . length . clients $ cflp,
+                               showsClients . clients $ cflp,
+                               showsDistances . distances $ cflp] ""
+
 -- | Adapted from https://www.fpcomplete.com/school/to-infinity-and-beyond/pick-of-the-week/parsing-floats-with-parsec
 
 number = many1 digit
