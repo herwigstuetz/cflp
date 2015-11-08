@@ -1,14 +1,25 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 -- | Capacitated Facility Location Problem
 
 module CFLP where
 
+import Control.Monad
+import qualified Control.Monad.State as State
+
 import           Data.Array
 import           Data.Function
-import           Data.List     (find, group, sort, sortBy, (\\))
+import           Data.List                     (find, group, sort, sortBy, (\\))
 import           Data.Tuple
 import           Text.Printf
 
-import qualified Data.Vector   as V
+import qualified Data.Vector                   as V
+
+import Control.Applicative hiding ((<|>))
+
+import Text.ParserCombinators.Parsec
+import Text.Parsec
 
 import           CPLEX
 import           MIP
@@ -135,24 +146,92 @@ showFacilities' fs = (unwords $ map (show . facilityId) fs) ++ "\n" ++
                      (unwords $ map (show . f) fs) ++ "\n" ++
                      (unwords $ map (show . u) fs) ++ "\n"
 
+showFacilitiesSol fs = (unwords $ map (show . facilityId) fs) ++ "\n" ++
+                       (unwords $ map (show . y) fs) ++ "\n"
+
 showClients' cs = (unwords $ map (show . clientId) cs) ++ "\n" ++
                   (unwords $ map (show . d) cs) ++ "\n"
 
-showDistances' ds = unlines [unwords [show $ ds!(i,j) | j <- [0..m]] | i <- [0..n]]
+showDistances' ds = unlines [unwords [show . c $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] ++ "\n"
   where (n,m) = snd . bounds $ ds
 
+showDistancesSol ds = unlines [unwords [show . x $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] ++ "\n"
+  where (n,m) = snd . bounds $ ds
+
+
 showCFLP' cflp = (show . length . facilities $ cflp) ++ "\n" ++
-                 (showFacilities' $ facilities $ cflp) ++ "\n\n" ++
+                 (showFacilities' . facilities $ cflp) ++ "\n" ++
                  (show . length . clients $ cflp) ++ "\n" ++
-                 (showClients' $ clients $ cflp) ++ "\n\n" ++
+                 (showClients' . clients $ cflp) ++ "\n" ++
                  (showDistances' . distances $ cflp) ++ "\n"
 
+showCFLPSolution cflp = (show . length . facilities $ cflp) ++ " " ++
+                        (show . length . clients $ cflp) ++ "\n" ++
+                        (showFacilitiesSol . facilities $ cflp) ++ "\n" ++
+                        (showDistancesSol . distances $ cflp) ++ "\n"
+
+-- | Adapted from https://www.fpcomplete.com/school/to-infinity-and-beyond/pick-of-the-week/parsing-floats-with-parsec
+
+number = many1 digit
+plus = char '+' *> number
+minus = char '-' <:> number
+
+(<++>) a b = (++) <$> a <*> b
+(<:>) a b = (:) <$> a <*> b
+
+integer :: (Stream s m Char) => ParsecT s u m Integer
+integer = rd <$> (pos <|> neg <|> number)
+  where rd     = read :: String -> Integer
+        pos    = char '+' *> number
+        neg    = (:) <$> char '-' <*> number
+        number = many1 digit
+
+integerList :: (Stream s m Char) => ParsecT s u m [Integer]
+integerList = (integer `sepBy` char ' ') <* newline
+
+double = fmap rd $ integer <++> decimal <++> exponent
+    where rd       = read :: String -> Double
+          decimal  = option "" $ char '.' <:> number
+          exponent = option "" $ oneOf "eE" <:> integer
+          integer  = plus <|> minus <|> number
+
+doubleList :: (Stream s m Char) => ParsecT s u m [Double]
+doubleList = (double `sepBy` char ' ') <* newline
+
+cflpFile :: (Stream s m Char) => ParsecT s u m CFLP
+cflpFile = do
+  -- number of facilities
+  n <- fromIntegral <$> integer
+  newline
+
+  fIds <- integerList
+  fs <- doubleList
+  us <- doubleList
+  newline
+
+  -- number of clients
+  m <- fromIntegral <$> integer
+  newline
+
+  cIds <- integerList
+  ds <- doubleList
+  newline
+
+  -- distances
+  cijs <- replicateM n doubleList
+
+  let cijs' = concat $ zipWith (\i ci -> zipWith (\j cij -> ((i, j), Distance i j cij 0.0)) [0..] ci) [0..] cijs
+
+  let facilities = createFacilitiesFromList $ zip fs us
+      clients    = createClientsFromList ds
+--      Just distances  = createDistanceFromList facilities clients cijs'
+  return $ CFLP facilities clients (array ((0,0),(n-1,m-1)) cijs')
 
 instance Show CFLP where
   show = showCFLP
 
 isFeasible :: CFLP -> Bool
-isFeasible (CFLP fs cs _) = (sum $ map u fs) >= (sum $ map d cs)
+isFeasible (CFLP fs cs _) = sum (map u fs) >= sum ( map d cs)
 
 
 -- | Accessors

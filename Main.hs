@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Control.Monad.State
+import           Control.Monad
 import           Control.Monad.Trans.Maybe
 import           Data.Array
 import           Data.Function
@@ -14,6 +14,7 @@ import           Data.Maybe
 import qualified Data.Set                  as Set
 import qualified Data.Vector               as V
 import qualified Data.Vector.Storable      as VS
+import           Text.Parsec.Prim
 
 import           Data.Array
 import           GHC.IO.Handle
@@ -49,6 +50,13 @@ catchOutput f = do
 main :: IO ()
 main = do
   cflp <- randomCFLP 4 4
+
+--  writeFile "cflp.txt" (showCFLP' cflp)
+  putStrLn (showCFLP' cflp)
+  putStrLn (showCFLPSolution cflp)
+  let cflp' = parse cflpFile "unknown" (showCFLP' cflp)
+  case cflp' of Left msg -> print msg
+                Right cflp'' -> print (cflp'' == cflp)
 
   if not $ isFeasible cflp
     then main
