@@ -18,14 +18,14 @@ data Facility = Facility { facilityId :: FacilityId
                          , f          :: Double -- opening cost
                          , u          :: Double -- capacity
                          , y          :: Double -- fraction opened
-                         } deriving (Show)
+                         } deriving (Show, Eq)
 
 type Facilities = [Facility]
 
 type ClientId = Int
 data Client = Client { clientId :: ClientId
                      , d        :: Double -- demand
-                     } deriving (Show)
+                     } deriving (Show, Eq)
 
 type Clients = [Client]
 
@@ -33,7 +33,7 @@ data Distance = Distance { i :: FacilityId
                          , j :: ClientId
                          , c :: Double -- cost
                          , x :: Double -- fraction satisfied
-                         } deriving (Show)
+                         } deriving (Show, Eq)
 
 --type Distances = [Distance]
 
@@ -46,6 +46,8 @@ type Distances = Array (FacilityId, ClientId) Distance
 data CFLP = CFLP { facilities :: Facilities
                  , clients    :: Clients
                  , distances  :: Distances}
+            deriving (Eq)
+
 
 showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f") $ map selector list)
 
