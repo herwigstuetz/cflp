@@ -23,6 +23,7 @@ import           System.IO
 import           Text.Printf
 
 import           Foreign.C
+import           System.Environment
 import           System.Random
 
 import           Debug.Trace
@@ -47,24 +48,50 @@ catchOutput f = do
   removeFile tmpf
   return str
 
+getFeasibleRandomCFLP n m = do
+  cflp <- randomCFLP n m
+  if isFeasible cflp
+    then return cflp
+    else getFeasibleRandomCFLP n m
+
 main :: IO ()
 main = do
-  cflp <- randomCFLP 4 4
+  args <- getArgs
+  case args of
+    ("write" : n : m : fileName : _) -> do
+      let n' = read n :: Int
+          m' = read m :: Int
+      cflp <- getFeasibleRandomCFLP n' m'
+      writeFile fileName (showCFLP'' cflp)
 
---  writeFile "cflp.txt" (showCFLP' cflp)
-  putStrLn (showCFLP' cflp)
-  putStrLn (showCFLP'' cflp)
-  putStrLn (showCFLPSolution cflp)
-  let cflp' = parse cflpFile "unknown" (showCFLP' cflp)
-  case cflp' of Left msg -> print msg
-                Right cflp'' -> print (cflp'' == cflp)
+    ("read" : fileName : _) -> do
+      cflp <- readFile fileName
+      let cflp' = parse cflpFile "cflp" cflp
+      case cflp' of Left msg -> print msg
+                    Right cflp'' -> do
+                      if not $ isFeasible cflp''
+                        then error "CFLP not feasible"
+                        else sol cflp''
 
-  if not $ isFeasible cflp
-    then main
-    else case fromCFLP cflp of Nothing -> main
-                               Just mip' -> do
-                                 solMip "CFLP" mip'
-                                 sol cflp
+    ("read-mip" : fileName : _) -> do
+      cflp <- readFile fileName
+      let cflp' = parse cflpFile "cflp" cflp
+      case cflp' of Left msg -> print msg
+                    Right cflp'' -> do
+                      if not $ isFeasible cflp''
+                        then error "CFLP not feasible"
+                        else case fromCFLP cflp'' of
+                        Nothing -> error "Could not create MIP"
+                        Just mip -> do sol <- solMip "CFLP" mip
+                                       print sol
+
+    ("run" : n : m : _) -> do
+      let n' = read n :: Int
+          m' = read m :: Int
+      cflp <- getFeasibleRandomCFLP n' m'
+      sol cflp
+
+--  putStrLn (showCFLPSolution cflp)
 
 -- | Adapted from http://stackoverflow.com/questions/8901252/2d-array-in-haskell
 showTable arr =
