@@ -54,6 +54,9 @@ getFeasibleRandomCFLP n m = do
     then return cflp
     else getFeasibleRandomCFLP n m
 
+usage = do
+  putStrLn "write n m filename|read filename|read-mip filename|run n m"
+
 main :: IO ()
 main = do
   args <- getArgs
@@ -93,6 +96,8 @@ main = do
       cflp <- getFeasibleRandomCFLP n' m'
       cflp' <- sol cflp
       putStrLn (showCFLPSolution cflp')
+    _ -> do
+      usage
 
 -- | Adapted from http://stackoverflow.com/questions/8901252/2d-array-in-haskell
 showTable arr =
