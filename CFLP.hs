@@ -152,6 +152,8 @@ showFacilitiesSol fs = (unwords $ map (show . facilityId) fs) ++ "\n" ++
 showClients' cs = (unwords $ map (show . clientId) cs) ++ "\n" ++
                   (unwords $ map (show . d) cs) ++ "\n"
 
+showClientsSol cs = (unwords $ map (show . clientId) cs) ++ "\n"
+
 showDistances' ds = unlines [unwords [show . c $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] ++ "\n"
   where (n,m) = snd . bounds $ ds
 
@@ -165,9 +167,10 @@ showCFLP' cflp = (show . length . facilities $ cflp) ++ "\n" ++
                  (showClients' . clients $ cflp) ++ "\n" ++
                  (showDistances' . distances $ cflp) ++ "\n"
 
-showCFLPSolution cflp = (show . length . facilities $ cflp) ++ " " ++
-                        (show . length . clients $ cflp) ++ "\n" ++
+showCFLPSolution cflp = (show . length . facilities $ cflp) ++ "\n" ++
                         (showFacilitiesSol . facilities $ cflp) ++ "\n" ++
+                        (show . length . clients $ cflp) ++ "\n" ++
+                        (showClientsSol . clients $ cflp) ++ "\n" ++
                         (showDistancesSol . distances $ cflp) ++ "\n"
 
 -- | ShowS implementation
