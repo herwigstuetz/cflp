@@ -101,71 +101,30 @@ createDistanceFromList fac clients = mapM (createDistance fac clients)
 
 showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f") $ map selector list)
 
-showFacilityIds :: Facilities -> String
-showFacilityIds fs = "  i: " ++ (unwords $ map (show . facilityId) fs)
-
-showOpeningCosts :: Facilities -> String
-showOpeningCosts fs = showFormat "f_i: " f fs
-
-showCapacities   :: Facilities -> String
-showCapacities   fs = showFormat "u_i: " u fs
-
-showFractionOpen :: Facilities -> String
-showFractionOpen fs = showFormat "y_i: " y fs
-
-showFacilities fs = (showFacilityIds fs) ++ "\n" ++
-                    (showOpeningCosts fs) ++ "\n" ++
-                    (showCapacities fs) ++ "\n" ++
-                    (showFractionOpen fs)
-
-showClientIds :: Clients -> String
-showClientIds cs = "  j: " ++ (unwords $ map (show . clientId) cs)
-
-showDemands :: Clients -> String
-showDemands cs = showFormat "d_j: " d cs
-
-showClients cs = (showClientIds cs) ++ "\n" ++
-                 (showDemands cs)
-
-
-showDistanceTable arr acc =
-  unlines $ map (unwords . map (show . acc . (arr !))) indices
-  where indices = [[(x, y) | x <- [startX..endX]] | y <- [startY..endY]]
-        ((startX, startY), (endX, endY)) = bounds arr
-
-showDistances ds = showDistanceTable ds c
-                   ++ "\n" ++
-                   showDistanceTable ds x
-
-showCFLP cflp = (showFacilities $ facilities cflp) ++ "\n\n"
-                ++ (showClients $ clients cflp) ++ "\n\n"
-                ++ (showDistances $ distances cflp)
-
-
-showFacilities' fs = (unwords $ map (show . facilityId) fs) ++ "\n" ++
-                     (unwords $ map (show . f) fs) ++ "\n" ++
-                     (unwords $ map (show . u) fs) ++ "\n"
+showFacilities fs = (unwords $ map (show . facilityId) fs) ++ "\n" ++
+                    (unwords $ map (show . f) fs) ++ "\n" ++
+                    (unwords $ map (show . u) fs) ++ "\n"
 
 showFacilitiesSol fs = (unwords $ map (show . facilityId) fs) ++ "\n" ++
                        (unwords $ map (show . y) fs) ++ "\n"
 
-showClients' cs = (unwords $ map (show . clientId) cs) ++ "\n" ++
-                  (unwords $ map (show . d) cs) ++ "\n"
+showClients cs = (unwords $ map (show . clientId) cs) ++ "\n" ++
+                 (unwords $ map (show . d) cs) ++ "\n"
 
 showClientsSol cs = (unwords $ map (show . clientId) cs) ++ "\n"
 
-showDistances' ds = unlines [unwords [show . c $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] ++ "\n"
+showDistances ds = unlines [unwords $ line i | i <- [0..n]] ++ "\n"
   where (n,m) = snd . bounds $ ds
-
+        line i = [show . c $ ds!(i,j) | j <- [0..m]]
 showDistancesSol ds = unlines [unwords [show . x $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] ++ "\n"
   where (n,m) = snd . bounds $ ds
 
 
-showCFLP' cflp = (show . length . facilities $ cflp) ++ "\n" ++
-                 (showFacilities' . facilities $ cflp) ++ "\n" ++
-                 (show . length . clients $ cflp) ++ "\n" ++
-                 (showClients' . clients $ cflp) ++ "\n" ++
-                 (showDistances' . distances $ cflp) ++ "\n"
+showCFLP cflp = (show . length . facilities $ cflp) ++ "\n" ++
+                (showFacilities . facilities $ cflp) ++ "\n" ++
+                (show . length . clients $ cflp) ++ "\n" ++
+                (showClients . clients $ cflp) ++ "\n" ++
+                (showDistances . distances $ cflp) ++ "\n"
 
 showOpenFacilites cflp = (show . length . facilities $ cflp) ++ "\n" ++
                          (showFacilitiesSol $ filter (\f -> y f > 0) (facilities cflp)) ++ "\n"
