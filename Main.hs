@@ -35,18 +35,18 @@ import           AP
 import           CFLP
 import           MIP
 
-catchOutput :: IO () -> IO String
+catchOutput :: IO a -> IO (a, String)
 catchOutput f = do
   tmpd <- getTemporaryDirectory
   (tmpf, tmph) <- openTempFile tmpd "haskell_stdout"
   stdout_dup <- hDuplicate stdout
   hDuplicateTo tmph stdout
   hClose tmph
-  f
+  result <- f
   hDuplicateTo stdout_dup stdout
   str <- readFile tmpf
   removeFile tmpf
-  return str
+  return (result, str)
 
 getFeasibleRandomCFLP n m = do
   cflp <- randomCFLP n m
@@ -323,7 +323,7 @@ c2 cflp clusters = updateCluster facilityAssignment clusters
 
 
 traceMsgId :: Show a => String -> a -> a
-traceMsgId msg val = trace (msg ++ show val) val
+traceMsgId msg val = val -- trace (msg ++ show val) val
 
 
 -- Reducing to single node
@@ -410,28 +410,32 @@ getOpenedFacilitiesFromSNCFLPs cflp sncflps = fs
 
 sol :: CFLP -> IO (CFLP)
 sol cflp = do
-  lpSol <- solLp "CFLP" $ fromJust . fromCFLP $ cflp
+  putStrLn "Solving relaxed linear program"
+  (lpSol, stdout) <- catchOutput $ solLp "CFLP" $ fromJust . fromCFLP $ cflp
 
-  putStrLn $ "lp x      : " ++ show (solX lpSol)
-  putStrLn $ "lp solstat: " ++ show (solStat lpSol)
-  putStrLn $ "lp objval : " ++ show (solObj lpSol)
+  -- putStrLn $ "stdout: " ++ stdout
+  -- putStrLn $ "end"
+
+  -- putStrLn $ "lp x      : " ++ show (solX lpSol)
+  -- putStrLn $ "lp solstat: " ++ show (solStat lpSol)
+  -- putStrLn $ "lp objval : " ++ show (solObj lpSol)
 
   let openedCFLP = openFacilitiesCFLP cflp lpSol
 
-  putStrLn $ "Open Facilities from LP:"
-  print $ map facilityId (filter (\f -> y f == 1.0) (facilities openedCFLP))
+  -- putStrLn "Open Facilities from LP:"
+  -- print $ map facilityId (filter (\f -> y f == 1.0) (facilities openedCFLP))
 
   let cflp = openedCFLP
-  print "Possible Centers"
-  print $ getPossibleCenters cflp []
-  print $ chooseNextCenter (getPossibleCenters cflp [])
-                           (getBudget cflp lpSol)
-  print "Cluster:"
+  -- print "Possible Centers"
+  -- print $ getPossibleCenters cflp []
+  -- print $ chooseNextCenter (getPossibleCenters cflp [])
+  --                          (getBudget cflp lpSol)
+  -- print "Cluster:"
   let cs = c1 cflp lpSol [] (getPossibleCenters cflp [])
-  printClusters cs
+  -- printClusters cs
   let cs' = c2 cflp cs
-  print "Updated Cluster:"
-  printClusters cs'
+  -- print "Updated Cluster:"
+  -- printClusters cs'
   let sncflps = catMaybes $ map (clusterToSNCFLP cflp) cs'
 
   let sncflps' = map (solveSNCFLP . snd) $ sncflps
@@ -440,17 +444,17 @@ sol cflp = do
       openedFs'  = getOpenedFacilitiesFromSNCFLPs cflp sncflps'
       openedFs'' = openedFs ++ openedFs'
       openedIds  = map facilityId openedFs''
-  print "Open Facilities from Cluster:"
-  print openedFs
+  -- print "Open Facilities from Cluster:"
+  -- print openedFs
 
-  print "Open Facilities from SNCFLP:"
-  print openedFs'
+  -- print "Open Facilities from SNCFLP:"
+  -- print openedFs'
 
-  print "Open IDs:"
-  print $ map facilityId openedFs''
+  -- print "Open IDs:"
+  -- print $ map facilityId openedFs''
 
-  print "Closed IDs:"
-  print $ (map facilityId (facilities cflp)) \\ (map facilityId (openedFs ++ openedFs'))
+  -- print "Closed IDs:"
+  -- print $ (map facilityId (facilities cflp)) \\ (map facilityId (openedFs ++ openedFs'))
 
 
   let openedCFLP = CFLP (filter (\f -> facilityId f `elem` openedIds) (facilities cflp))
@@ -460,19 +464,19 @@ sol cflp = do
 
 
   let mcf = fromOpenedCFLP openedCFLP
-  print $ obj mcf
-  putStr $ showAmat (amat mcf)
+  -- print $ obj mcf
+  -- putStr $ showAmat (amat mcf)
 
 --  print openedCFLP
 --  print mcf
-  mcfSol <- solLp "MCF" mcf
+  (mcfSol, stdout) <- catchOutput $ solLp "MCF" mcf
 
-  print $ solX mcfSol
+  -- print $ solX mcfSol
 
   let openedMcf = assignFacilitiesMCF openedCFLP mcfSol
-  print openedMcf
-  print "Total Cost: "
-  print $ (solObj mcfSol)
-  print $ sum (map f (facilities cflp))
-  print $ (solObj mcfSol) + sum (map f (facilities cflp))
+  -- print openedMcf
+  -- print "Total Cost: "
+  -- print $ (solObj mcfSol)
+  -- print $ sum (map f (facilities cflp))
+  -- print $ (solObj mcfSol) + sum (map f (facilities cflp))
   return openedMcf
