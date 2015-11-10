@@ -16,7 +16,6 @@ import qualified Data.Vector               as V
 import qualified Data.Vector.Storable      as VS
 import           Text.Parsec.Prim
 
-import           Data.Array
 import           GHC.IO.Handle
 import           System.Directory
 import           System.IO
@@ -54,8 +53,7 @@ getFeasibleRandomCFLP n m = do
     then return cflp
     else getFeasibleRandomCFLP n m
 
-usage = do
-  putStrLn "write n m filename|read filename|read-mip filename|run n m"
+usage = putStrLn "write n m filename|read filename|read-mip filename|run n m"
 
 main :: IO ()
 main = do
@@ -72,7 +70,7 @@ main = do
       let cflp' = parse cflpFile "cflp" cflp
       case cflp' of
         Left msg -> print msg
-        Right cflp'' -> do
+        Right cflp'' ->
           if not $ isFeasible cflp''
             then error "CFLP not feasible"
             else do cflp''' <- sol cflp''
@@ -82,7 +80,7 @@ main = do
       cflp <- readFile fileName
       let cflp' = parse cflpFile "cflp" cflp
       case cflp' of Left msg -> print msg
-                    Right cflp'' -> do
+                    Right cflp'' ->
                       if not $ isFeasible cflp''
                         then error "CFLP not feasible"
                         else case fromCFLP cflp'' of
@@ -96,12 +94,11 @@ main = do
       cflp <- getFeasibleRandomCFLP n' m'
       cflp' <- sol cflp
       putStrLn (showCFLPSolution cflp')
-    _ -> do
-      usage
+    _ -> usage
 
 -- | Adapted from http://stackoverflow.com/questions/8901252/2d-array-in-haskell
 showTable arr =
-  unlines $ map (unwords . map ((printf "%.2f") . (arr !))) indices
+  unlines $ map (unwords . map (printf "%.2f" . (arr !))) indices
   where indices = [[(x, y) | y <- [startY..endY]] | x <- [startX..endX]]
         ((startX, startY), (endX, endY)) = bounds arr
 
@@ -157,8 +154,8 @@ openFacility f y = f { y = y }
 --getSol :: VS.Vector a -> Facility -> a
 getSol sol f = sol VS.! facilityId f
 
-openFacilitiesCFLP :: CFLP -> CpxSolution -> CFLP
-openFacilitiesCFLP cflp sol = cflp { facilities = openFacilities (facilities cflp) ys
+fromCpxSolution :: CFLP -> CpxSolution -> CFLP
+fromCpxSolution cflp sol = cflp { facilities = openFacilities (facilities cflp) ys
                                    , distances = satisfyDemand cflp xs
                                    }
   where n = length $ facilities cflp
@@ -190,7 +187,7 @@ satisfyDemand mcf xs = ds // (map (\ ((i, j), Distance i' j' c x)
         xs' = V.fromList xs
 
 satisfyDemand' :: CFLP -> [Double] -> Distances
-satisfyDemand' mcf xs = do
+satisfyDemand' mcf xs =
   let
     -- old  array elements
     ds = distances mcf
@@ -209,7 +206,6 @@ satisfyDemand' mcf xs = do
 
     -- get distances from open facilities
     as = [ ((i,j), ds!(i,j)) | i <- fIds, j <- cIds ]
---    as  = filter (\((i, _), _) -> i `elem` fIds) (assocs ds)
 
     -- update fn
     updatedX :: Int -> Int -> Double
@@ -269,7 +265,7 @@ calculateBj cluster cflp j = bj
         ds = distances cflp
         bj = [i | i <- fj
                 , i `notElem` nk
-                , maybeToGuard $ isNearer <$> (getDistanceById ds i j) <*> sequence [getDistanceById ds i k | k <- ks]]
+                , maybeToGuard $ isNearer <$> getDistanceById ds i j <*> sequence [getDistanceById ds i k | k <- ks]]
 
 getXs :: Distances -> [FacilityId] -> [ClientId] -> [Double]
 getXs ds is js = [ x $ ds!(i,j) | i <- is, j <- js]
@@ -279,7 +275,7 @@ getXs ds is js = [ x $ ds!(i,j) | i <- is, j <- js]
 
 getPossibleCenters :: CFLP -> [Cluster] -> [ClientId]
 getPossibleCenters cflp currentClusters = do
-  let unclustered = (map clientId $ clients cflp) \\ map clusterCenter currentClusters
+  let unclustered = map clientId (clients cflp) \\ map clusterCenter currentClusters
   j <- unclustered
   let bj = calculateBj currentClusters cflp j
       xs = getXs (distances cflp) bj [j]
@@ -296,7 +292,7 @@ c1 cflp sol c s  = (traceMsgId "c1   : " $ formCluster c cflp s (getBudget cflp 
 -- Step C2
 
 facilityDistances :: CFLP -> FacilityId -> [Distance]
-facilityDistances cflp i = [ ds!(i,j) | j <- [0..(length $ clients cflp) - 1] ]
+facilityDistances cflp i = [ ds!(i,j) | j <- [0..length (clients cflp) - 1] ]
   where ds = distances cflp
 --  filter (\(Distance r s _ _) -> i == r) (distances cflp)
 
@@ -345,7 +341,7 @@ instance Show SNCFLP where
   show (SNCFLP fs d) = "D: " ++ show d ++ "\n" ++ showSnFacilities fs
 
 showSnFacilities :: [SNFacility] -> String
-showSnFacilities fs = "i: " ++ (unwords $ map (printf "%d") $ map snFacilityId fs) ++ "\n"
+showSnFacilities fs = "i: " ++ unwords (map (printf "%d" . snFacilityId) fs) ++ "\n"
                       ++ showFormat "f: " snOpeningCost fs ++ "\n"
                       ++ showFormat "u: " snCapacity fs ++ "\n"
                       ++ showFormat "c: " snDistance fs ++ "\n"
@@ -355,7 +351,7 @@ showSnFacilities fs = "i: " ++ (unwords $ map (printf "%d") $ map snFacilityId f
 clusterToSNCFLP :: CFLP -> Cluster -> Maybe (ClientId, SNCFLP)
 clusterToSNCFLP cflp (Cluster k nk) = if null snfs then Nothing
                                       else Just (k, sncflp)
-  where fs = catMaybes $ map (findFacility (facilities cflp)) nk
+  where fs = mapMaybe (findFacility (facilities cflp)) nk
         cs = map clientId (clients cflp)
         ds = distances cflp
         lk = filter (\i -> y i < 1.0) fs
@@ -363,7 +359,7 @@ clusterToSNCFLP cflp (Cluster k nk) = if null snfs then Nothing
         snfids = map facilityId lk
         snocs  = map f lk
         sncs   = map u lk
-        snds   = catMaybes $ map (\i -> getDistanceById ds i k) snfids
+        snds   = mapMaybe (\i -> getDistanceById ds i k) snfids
 
         totalDemand = sum $ getXs ds snfids cs
         snfs        = zipWith5 SNFacility snfids snocs sncs snds [0.0,0.0..]
@@ -398,17 +394,24 @@ greedySolve (v : vs) d | d < v  = d : greedySolve vs 0.0
 getOpenedFacilitiesFromClusters :: CFLP -> [Cluster] -> Facilities
 getOpenedFacilitiesFromClusters cflp clusters = filter (\i -> y i == 1.0) fs
   where nk = concatMap clusterElements clusters
-        fs = catMaybes $ map (findFacility (facilities cflp)) nk
+        fs = mapMaybe (findFacility (facilities cflp)) nk
 
 getOpenedFacilitiesFromSNCFLPs :: CFLP -> [SNCFLP] -> Facilities
 getOpenedFacilitiesFromSNCFLPs cflp sncflps = fs
   where nk = filter (\f -> snDemand f == 1.0 ) $ concatMap snFacilities sncflps
-        fs = catMaybes $ map (findFacility (facilities cflp)) $ map snFacilityId nk
+        fs = mapMaybe (findFacility (facilities cflp) . snFacilityId) nk
 
+
+solExact :: CFLP -> IO CFLP
+solExact cflp =
+  case fromCFLP cflp of
+    Nothing -> error "Could not create MIP"
+    Just mip -> do sol <- solMip "MIP" mip
+                   return $ fromCpxSolution cflp sol
 
 -- Assign clients
 
-sol :: CFLP -> IO (CFLP)
+sol :: CFLP -> IO CFLP
 sol cflp = do
   putStrLn "Solving relaxed linear program"
   (lpSol, stdout) <- catchOutput $ solLp "CFLP" $ fromJust . fromCFLP $ cflp
@@ -420,7 +423,7 @@ sol cflp = do
   -- putStrLn $ "lp solstat: " ++ show (solStat lpSol)
   -- putStrLn $ "lp objval : " ++ show (solObj lpSol)
 
-  let openedCFLP = openFacilitiesCFLP cflp lpSol
+  let openedCFLP = fromCpxSolution cflp lpSol
 
   -- putStrLn "Open Facilities from LP:"
   -- print $ map facilityId (filter (\f -> y f == 1.0) (facilities openedCFLP))
@@ -436,9 +439,9 @@ sol cflp = do
   let cs' = c2 cflp cs
   -- print "Updated Cluster:"
   -- printClusters cs'
-  let sncflps = catMaybes $ map (clusterToSNCFLP cflp) cs'
+  let sncflps = mapMaybe (clusterToSNCFLP cflp) cs'
 
-  let sncflps' = map (solveSNCFLP . snd) $ sncflps
+  let sncflps' = map (solveSNCFLP . snd) sncflps
 
   let openedFs   = getOpenedFacilitiesFromClusters cflp cs'
       openedFs'  = getOpenedFacilitiesFromSNCFLPs cflp sncflps'
@@ -479,4 +482,5 @@ sol cflp = do
   -- print $ (solObj mcfSol)
   -- print $ sum (map f (facilities cflp))
   -- print $ (solObj mcfSol) + sum (map f (facilities cflp))
+
   return openedMcf
