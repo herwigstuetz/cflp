@@ -53,47 +53,83 @@ getFeasibleRandomCFLP n m = do
     then return cflp
     else getFeasibleRandomCFLP n m
 
+usage :: IO ()
 usage = putStrLn "write n m filename|read filename|read-mip filename|run n m"
+
+writeCFLP :: [String] -> IO ()
+writeCFLP ("write" : n : m : fileName : _) = do
+  let n' = read n :: Int
+      m' = read m :: Int
+  cflp <- getFeasibleRandomCFLP n' m'
+  writeFile fileName (showCFLP'' cflp)
+
+readCFLP :: [String] -> IO ()
+readCFLP ("read" : fileName : _) = do
+  cflp <- readFile fileName
+  let cflp' = parse cflpFile "cflp" cflp
+  case cflp' of
+    Left msg -> print msg
+    Right cflp'' ->
+      if not $ isFeasible cflp''
+      then error "CFLP not feasible"
+      else do cflp''' <- sol cflp''
+              return ()
+readCFLP _ = usage
+
+readMip :: [String] -> IO ()
+readMip ("read-mip" : fileName : _) = do
+  cflp <- readFile fileName
+  let cflp' = parse cflpFile "cflp" cflp
+  case cflp' of
+    Left msg -> print msg
+    Right cflp'' ->
+      if not $ isFeasible cflp''
+      then error "CFLP not feasible"
+      else do (obj, sol) <- solExact cflp''
+              writeSol sol
+readMip _ = usage
+
+runCFLP :: [String] -> IO ()
+runCFLP ("run" : n : m : _) = do
+  let n' = read n :: Int
+      m' = read m :: Int
+  cflp <- getFeasibleRandomCFLP n' m'
+  (obj, cflp') <- sol cflp
+  writeSol cflp'
+runCFLP _ = usage
+
+benchCFLP :: [String] -> IO ()
+benchCFLP ("bench" : n : m : _) = do
+  let n' = read n :: Int
+      m' = read m :: Int
+  cflp <- getFeasibleRandomCFLP n' m'
+
+  -- Exact
+  (exactObj, exactSol) <- solExact cflp
+
+  -- Approx
+  (approxObj, approxSol) <- sol cflp
+
+  putStrLn (printf "Exact: %.2f, Approx: %.2f, Ratio: %.2f" exactObj approxObj (approxObj/exactObj))
+  return ()
+
+
+benchCFLP _ = usage
+
+writeSol :: CFLP -> IO ()
+writeSol cflp = do
+  putStrLn "Solution:"
+  putStrLn (showCFLPSolution cflp)
 
 main :: IO ()
 main = do
   args <- getArgs
   case args of
-    ("write" : n : m : fileName : _) -> do
-      let n' = read n :: Int
-          m' = read m :: Int
-      cflp <- getFeasibleRandomCFLP n' m'
-      writeFile fileName (showCFLP'' cflp)
-
-    ("read" : fileName : _) -> do
-      cflp <- readFile fileName
-      let cflp' = parse cflpFile "cflp" cflp
-      case cflp' of
-        Left msg -> print msg
-        Right cflp'' ->
-          if not $ isFeasible cflp''
-            then error "CFLP not feasible"
-            else do cflp''' <- sol cflp''
-                    return ()
-
-    ("read-mip" : fileName : _) -> do
-      cflp <- readFile fileName
-      let cflp' = parse cflpFile "cflp" cflp
-      case cflp' of Left msg -> print msg
-                    Right cflp'' ->
-                      if not $ isFeasible cflp''
-                        then error "CFLP not feasible"
-                        else case fromCFLP cflp'' of
-                        Nothing -> error "Could not create MIP"
-                        Just mip -> do sol <- solMip "CFLP" mip
-                                       print sol
-
-    ("run" : n : m : _) -> do
-      let n' = read n :: Int
-          m' = read m :: Int
-      cflp <- getFeasibleRandomCFLP n' m'
-      cflp' <- sol cflp
-      putStrLn (showCFLPSolution cflp')
+    ("write"    : _) -> writeCFLP args
+    ("read"     : _) -> readCFLP args
+    ("read-mip" : _) -> readMip args
+    ("run"      : _) -> runCFLP args
+    ("bench"    : _) -> benchCFLP args
     _ -> usage
 
 -- | Adapted from http://stackoverflow.com/questions/8901252/2d-array-in-haskell
@@ -402,18 +438,18 @@ getOpenedFacilitiesFromSNCFLPs cflp sncflps = fs
         fs = mapMaybe (findFacility (facilities cflp) . snFacilityId) nk
 
 
-solExact :: CFLP -> IO CFLP
+solExact :: CFLP -> IO (Double, CFLP)
 solExact cflp =
   case fromCFLP cflp of
     Nothing -> error "Could not create MIP"
     Just mip -> do
         putStrLn "Solving mixed integer program"
-        sol <- solMip "MIP" mip
-        return $ fromCpxSolution cflp sol
+        (sol, stdout) <- catchOutput $ solMip "MIP" mip
+        return $ (solObj sol, fromCpxSolution cflp sol)
 
 -- Assign clients
 
-sol :: CFLP -> IO CFLP
+sol :: CFLP -> IO (Double, CFLP)
 sol cflp = do
   putStrLn "Solving relaxed linear program"
   (lpSol, stdout) <- catchOutput $ solLp "CFLP" $ fromJust . fromCFLP $ cflp
@@ -443,5 +479,6 @@ sol cflp = do
   putStrLn "Solving assignment problem"
   (mcfSol, stdout) <- catchOutput $ solLp "MCF" mcf
   let openedMcf = assignFacilitiesMCF openedCFLP mcfSol
+      openedObj = (solObj mcfSol) + sum (map f (facilities cflp))
 
-  return openedMcf
+  return (openedObj, openedMcf)
