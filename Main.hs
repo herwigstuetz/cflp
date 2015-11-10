@@ -406,8 +406,10 @@ solExact :: CFLP -> IO CFLP
 solExact cflp =
   case fromCFLP cflp of
     Nothing -> error "Could not create MIP"
-    Just mip -> do sol <- solMip "MIP" mip
-                   return $ fromCpxSolution cflp sol
+    Just mip -> do
+        putStrLn "Solving mixed integer program"
+        sol <- solMip "MIP" mip
+        return $ fromCpxSolution cflp sol
 
 -- Assign clients
 
@@ -415,72 +417,31 @@ sol :: CFLP -> IO CFLP
 sol cflp = do
   putStrLn "Solving relaxed linear program"
   (lpSol, stdout) <- catchOutput $ solLp "CFLP" $ fromJust . fromCFLP $ cflp
+  let relaxedCFLP = fromCpxSolution cflp lpSol
 
-  -- putStrLn $ "stdout: " ++ stdout
-  -- putStrLn $ "end"
+  putStrLn "Clustering facilities"
+  let cs  = c1 relaxedCFLP lpSol [] (getPossibleCenters relaxedCFLP [])
+      cs' = c2 relaxedCFLP cs
 
-  -- putStrLn $ "lp x      : " ++ show (solX lpSol)
-  -- putStrLn $ "lp solstat: " ++ show (solStat lpSol)
-  -- putStrLn $ "lp objval : " ++ show (solObj lpSol)
+  putStrLn "Solving SNCFLPs"
+  let sncflps  = mapMaybe (clusterToSNCFLP relaxedCFLP) cs'
+      sncflps' = map (solveSNCFLP . snd) sncflps
 
-  let openedCFLP = fromCpxSolution cflp lpSol
-
-  -- putStrLn "Open Facilities from LP:"
-  -- print $ map facilityId (filter (\f -> y f == 1.0) (facilities openedCFLP))
-
-  let cflp = openedCFLP
-  -- print "Possible Centers"
-  -- print $ getPossibleCenters cflp []
-  -- print $ chooseNextCenter (getPossibleCenters cflp [])
-  --                          (getBudget cflp lpSol)
-  -- print "Cluster:"
-  let cs = c1 cflp lpSol [] (getPossibleCenters cflp [])
-  -- printClusters cs
-  let cs' = c2 cflp cs
-  -- print "Updated Cluster:"
-  -- printClusters cs'
-  let sncflps = mapMaybe (clusterToSNCFLP cflp) cs'
-
-  let sncflps' = map (solveSNCFLP . snd) sncflps
-
-  let openedFs   = getOpenedFacilitiesFromClusters cflp cs'
-      openedFs'  = getOpenedFacilitiesFromSNCFLPs cflp sncflps'
+  putStrLn "Collecting opened facilities"
+  let openedFs   = getOpenedFacilitiesFromClusters relaxedCFLP cs'
+      openedFs'  = getOpenedFacilitiesFromSNCFLPs relaxedCFLP sncflps'
       openedFs'' = openedFs ++ openedFs'
       openedIds  = map facilityId openedFs''
-  -- print "Open Facilities from Cluster:"
-  -- print openedFs
 
-  -- print "Open Facilities from SNCFLP:"
-  -- print openedFs'
-
-  -- print "Open IDs:"
-  -- print $ map facilityId openedFs''
-
-  -- print "Closed IDs:"
-  -- print $ (map facilityId (facilities cflp)) \\ (map facilityId (openedFs ++ openedFs'))
-
-
-  let openedCFLP = CFLP (filter (\f -> facilityId f `elem` openedIds) (facilities cflp))
-                        (clients cflp)
-                        (distances cflp)
---                        (array (bounds $ distances cflp) (map (\(_, d) -> i d `elem` openedIds) (assocs $ distances cflp)))
-
+  let openedCFLP = CFLP (filter (\f -> facilityId f `elem` openedIds)
+                         (facilities relaxedCFLP))
+                        (clients relaxedCFLP)
+                        (distances relaxedCFLP)
 
   let mcf = fromOpenedCFLP openedCFLP
-  -- print $ obj mcf
-  -- putStr $ showAmat (amat mcf)
 
---  print openedCFLP
---  print mcf
+  putStrLn "Solving assignment problem"
   (mcfSol, stdout) <- catchOutput $ solLp "MCF" mcf
-
-  -- print $ solX mcfSol
-
   let openedMcf = assignFacilitiesMCF openedCFLP mcfSol
-  -- print openedMcf
-  -- print "Total Cost: "
-  -- print $ (solObj mcfSol)
-  -- print $ sum (map f (facilities cflp))
-  -- print $ (solObj mcfSol) + sum (map f (facilities cflp))
 
   return openedMcf
