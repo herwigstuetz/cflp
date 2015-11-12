@@ -126,8 +126,8 @@ showCFLP cflp = (show . length . facilities $ cflp) ++ "\n" ++
                 (showClients . clients $ cflp) ++ "\n" ++
                 (showDistances . distances $ cflp) ++ "\n"
 
-showOpenFacilites cflp = (show . length . facilities $ cflp) ++ "\n" ++
-                         (showFacilitiesSol $ filter (\f -> y f > 0) (facilities cflp)) ++ "\n"
+showOpenFacilities cflp = (show . length . facilities $ cflp) ++ "\n" ++
+                          (showFacilitiesSol $ filter (\f -> y f > 0) (facilities cflp)) ++ "\n"
 
 showCFLPSolution cflp = (show . length . facilities $ cflp) ++ "\n" ++
                         (showFacilitiesSol . facilities $ cflp) ++ "\n" ++
