@@ -449,36 +449,70 @@ solExact cflp =
 
 -- Assign clients
 
+showRelaxed = False
+showCluster1 = False
+showCluster2 = False
+showSNCFLPs = False
+showOpenFs = False
+showOpenCFLP = False
+showMCF = False
+showOpenMCF = False
+
 solApprox :: CFLP -> IO (Double, CFLP)
 solApprox cflp = do
   putStrLn "Solving relaxed linear program"
   (lpSol, stdout) <- catchOutput $ solLp "CFLP" $ fromJust . fromCFLP $ cflp
   let relaxedCFLP = fromCpxSolution cflp lpSol
+  when showRelaxed $ do
+    putStrLn "Relaxed CFLP:"
+    print relaxedCFLP
 
   putStrLn "Clustering facilities"
   let cs  = c1 relaxedCFLP lpSol [] (getPossibleCenters relaxedCFLP [])
       cs' = c2 relaxedCFLP cs
+  when showCluster1 $ do
+    putStrLn "C1:"
+    print cs
+  when showCluster2 $ do
+    putStrLn "C2:"
+    print cs'
+
 
   putStrLn "Solving SNCFLPs"
   let sncflps  = mapMaybe (clusterToSNCFLP relaxedCFLP) cs'
       sncflps' = map (solveSNCFLP . snd) sncflps
+  when showSNCFLPs $ do
+    putStrLn "SNCFLPs:"
+    print sncflps'
 
   putStrLn "Collecting opened facilities"
   let openedFs   = getOpenedFacilitiesFromClusters relaxedCFLP cs'
       openedFs'  = getOpenedFacilitiesFromSNCFLPs relaxedCFLP sncflps'
       openedFs'' = openedFs ++ openedFs'
       openedIds  = map facilityId openedFs''
+  when showOpenFs $ do
+    putStrLn "Open facilities:"
+    print openedIds
 
   let openedCFLP = CFLP (filter (\f -> facilityId f `elem` openedIds)
                          (facilities relaxedCFLP))
                         (clients relaxedCFLP)
                         (distances relaxedCFLP)
+  when showOpenCFLP $ do
+    putStrLn "Open CFLP:"
+    print openedCFLP
 
   let mcf = fromOpenedCFLP openedCFLP
+  when showMCF $ do
+    putStrLn "MCF:"
+    print mcf
 
   putStrLn "Solving assignment problem"
   (mcfSol, stdout) <- catchOutput $ solLp "MCF" mcf
   let openedMcf = assignFacilitiesMCF openedCFLP mcfSol
       openedObj = (solObj mcfSol) + sum (map f (facilities openedCFLP))
+  when showOpenMCF $ do
+    putStrLn "Open MCF:"
+    print openedMcf
 
   return (openedObj, openedMcf)
