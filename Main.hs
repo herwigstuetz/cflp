@@ -479,6 +479,6 @@ solApprox cflp = do
   putStrLn "Solving assignment problem"
   (mcfSol, stdout) <- catchOutput $ solLp "MCF" mcf
   let openedMcf = assignFacilitiesMCF openedCFLP mcfSol
-      openedObj = (solObj mcfSol) + sum (map f (facilities cflp))
+      openedObj = (solObj mcfSol) + sum (map f (facilities openedCFLP))
 
   return (openedObj, openedMcf)
