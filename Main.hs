@@ -72,7 +72,7 @@ readCFLP ("read" : fileName : _) = do
     Right cflp'' ->
       if not $ isFeasible cflp''
       then error "CFLP not feasible"
-      else do cflp''' <- sol cflp''
+      else do cflp''' <- solApprox cflp''
               return ()
 readCFLP _ = usage
 
@@ -94,7 +94,7 @@ runCFLP ("run" : n : m : _) = do
   let n' = read n :: Int
       m' = read m :: Int
   cflp <- getFeasibleRandomCFLP n' m'
-  (obj, cflp') <- sol cflp
+  (obj, cflp') <- solApprox cflp
   writeSol cflp'
 runCFLP _ = usage
 
@@ -108,7 +108,7 @@ benchCFLP ("bench" : n : m : _) = do
   (exactObj, exactSol) <- solExact cflp
 
   -- Approx
-  (approxObj, approxSol) <- sol cflp
+  (approxObj, approxSol) <- solApprox cflp
 
   putStrLn (printf "Exact: %.2f, Approx: %.2f, Ratio: %.2f" exactObj approxObj (approxObj/exactObj))
   return ()
@@ -449,8 +449,8 @@ solExact cflp =
 
 -- Assign clients
 
-sol :: CFLP -> IO (Double, CFLP)
-sol cflp = do
+solApprox :: CFLP -> IO (Double, CFLP)
+solApprox cflp = do
   putStrLn "Solving relaxed linear program"
   (lpSol, stdout) <- catchOutput $ solLp "CFLP" $ fromJust . fromCFLP $ cflp
   let relaxedCFLP = fromCpxSolution cflp lpSol
