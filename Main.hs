@@ -110,6 +110,12 @@ benchCFLP ("bench" : n : m : _) = do
   -- Approx
   (approxObj, approxSol) <- solApprox cflp
 
+  putStrLn "Opened Facilities (exact):"
+  putStrLn (showOpenFacilities exactSol)
+
+  putStrLn "Opened Facilities (approx):"
+  putStrLn (showOpenFacilities approxSol)
+
   putStrLn (printf "Exact: %.2f, Approx: %.2f, Ratio: %.2f" exactObj approxObj (approxObj/exactObj))
   return ()
 
