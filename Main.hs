@@ -54,7 +54,7 @@ getFeasibleRandomCFLP n m = do
     else getFeasibleRandomCFLP n m
 
 usage :: IO ()
-usage = putStrLn "write n m filename|read filename|read-mip filename|run n m"
+usage = putStrLn "write n m filename|read filename|read-mip filename|run n m|bench n m"
 
 writeCFLP :: [String] -> IO ()
 writeCFLP ("write" : n : m : fileName : _) = do
