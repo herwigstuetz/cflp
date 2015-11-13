@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns      #-}
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
@@ -37,13 +38,14 @@ import           MIP
 catchOutput :: IO a -> IO (a, String)
 catchOutput f = do
   tmpd <- getTemporaryDirectory
-  (tmpf, tmph) <- openTempFile tmpd "haskell_stdout"
-  stdout_dup <- hDuplicate stdout
+  !(tmpf, tmph) <- openTempFile tmpd "haskell_stdout"
+  !stdout_dup <- hDuplicate stdout
   hDuplicateTo tmph stdout
   hClose tmph
-  result <- f
+  !result <- f
   hDuplicateTo stdout_dup stdout
-  str <- readFile tmpf
+  hClose stdout_dup
+  !str <- readFile tmpf
   removeFile tmpf
   return (result, str)
 
@@ -451,6 +453,7 @@ solExact cflp =
     Just mip -> do
         putStrLn "Solving mixed integer program"
         (sol, stdout) <- catchOutput $ solMip "MIP" mip
+        print $ length stdout
         return $ (solObj sol, fromCpxSolution cflp sol)
 
 -- Assign clients
