@@ -144,11 +144,12 @@ main :: IO ()
 main = do
   args <- getArgs
   case args of
-    ("write"    : _) -> writeCFLP args
-    ("read"     : _) -> readCFLP args
-    ("read-mip" : _) -> readMip args
-    ("run"      : _) -> runCFLP args
-    ("bench"    : _) -> benchCFLP args
+    ("write"     : _) -> writeCFLP args
+    ("read"      : _) -> readCFLP args
+    ("read-mip"  : _) -> readMip args
+    ("run"       : _) -> runCFLP args
+    ("bench"     : _) -> benchCFLP args
+    ("criterion" : _) -> criterionBench
     _ -> usage
 
 -- | Adapted from http://stackoverflow.com/questions/8901252/2d-array-in-haskell
