@@ -125,9 +125,14 @@ benchCFLP ("bench" : n : m : _) = do
 
 
 criterionBench = defaultMain [
-  bgroup "solExact" $ map (\ n -> bench (show n)  $ nfIO $ do cflp <- getFeasibleRandomCFLP n n
-                                                              (exactObj, exactSol) <- solExact cflp
-                                                              return ()) [5,10,50,100]
+    bgroup "solExact" $ map (\ n -> bench (show n)  $ nfIO $
+                                    do cflp <- getFeasibleRandomCFLP n n
+                                       (exactObj, exactSol) <- solExact cflp
+                                       return ()) [5,10,50,100]
+  , bgroup "solApprox" $ map (\ n -> bench (show n)  $ nfIO $
+                                     do cflp <- getFeasibleRandomCFLP n n
+                                        (approxObj, approxSol) <- solApprox cflp
+                                        return ()) [5,10,50,100]
   ]
 
 writeSol :: CFLP -> IO ()
