@@ -35,6 +35,8 @@ import           AP
 import           CFLP
 import           MIP
 
+import           Criterion.Main
+
 catchOutput :: IO a -> IO (a, String)
 catchOutput f = do
   tmpd <- getTemporaryDirectory
@@ -122,7 +124,11 @@ benchCFLP ("bench" : n : m : _) = do
   return ()
 
 
-benchCFLP _ = usage
+criterionBench = defaultMain [
+  bgroup "solExact" $ map (\ n -> bench (show n)  $ nfIO $ do cflp <- getFeasibleRandomCFLP n n
+                                                              (exactObj, exactSol) <- solExact cflp
+                                                              return ()) [5,10,50,100]
+  ]
 
 writeSol :: CFLP -> IO ()
 writeSol cflp = do
