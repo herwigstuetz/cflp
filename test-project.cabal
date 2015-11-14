@@ -32,5 +32,6 @@ executable test-project
                      , vector
                      , parsec >= 3.1.9
                      , criterion >= 1.1.0.0
+                     , hslogger >= 1.2.9
   -- hs-source-dirs:
   default-language:    Haskell2010

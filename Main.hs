@@ -24,6 +24,12 @@ import           Text.Printf
 
 import           Foreign.C
 import           System.Environment
+
+import           System.Log.Formatter
+import           System.Log.Handler        (close, setFormatter)
+import           System.Log.Handler.Simple
+import           System.Log.Logger
+
 import           System.Random
 
 import           Debug.Trace
@@ -105,6 +111,9 @@ runCFLP _ = usage
 benchCFLP :: [String] -> IO ()
 benchCFLP ("bench" : n : m : _) = do
   let n' = read n :: Int
+  -- Update logger for no output
+  updateGlobalLogger "cflp" (setLevel ERROR)
+
       m' = read m :: Int
   cflp <- getFeasibleRandomCFLP n' m'
 
@@ -150,6 +159,11 @@ writeSol cflp = do
 
 main :: IO ()
 main = do
+  -- Set up logger
+  h <- fileHandler "cflp.log" DEBUG >>= \lh -> return $
+                                               setFormatter lh (simpleLogFormatter "[$time : $loggername : $prio] $msg")
+  updateGlobalLogger rootLoggerName (addHandler h)
+  updateGlobalLogger "cflp" (setLevel INFO)
   args <- getArgs
   case args of
     ("write"     : _) -> writeCFLP args
@@ -159,6 +173,10 @@ main = do
     ("bench"     : _) -> benchCFLP args
     ("criterion" : _) -> criterionBench
     _ -> usage
+
+  -- Close logger
+  close h
+  return ()
 
 -- | Adapted from http://stackoverflow.com/questions/8901252/2d-array-in-haskell
 showTable arr =
@@ -471,77 +489,60 @@ solExact cflp =
   case fromCFLP cflp of
     Nothing -> error "Could not create MIP"
     Just mip -> do
-        putStrLn "Solving mixed integer program"
+        infoM "cflp" "Solving mixed integer program"
         (sol, stdout) <- catchOutput $ solMip "MIP" mip
-        print $ length stdout
+--        print $ length stdout
         return $ (solObj sol, fromCpxSolution cflp sol)
 
 -- Assign clients
 
-showRelaxed = False
-showCluster1 = False
-showCluster2 = False
-showSNCFLPs = False
-showOpenFs = False
-showOpenCFLP = False
-showMCF = False
-showOpenMCF = False
-
 solApprox :: CFLP -> IO (Double, CFLP)
 solApprox cflp = do
-  putStrLn "Solving relaxed linear program"
+  infoM "cflp" "Solving relaxed linear program"
   (lpSol, stdout) <- catchOutput $ solLp "CFLP" $ fromJust . fromCFLP $ cflp
   let relaxedCFLP = fromCpxSolution cflp lpSol
-  when showRelaxed $ do
-    putStrLn "Relaxed CFLP:"
-    print relaxedCFLP
+  infoM "cflp" "Relaxed CFLP:"
+  infoM "cflp" $ show relaxedCFLP
 
-  putStrLn "Clustering facilities"
+  infoM "cflp" "Clustering facilities"
   let cs  = c1 relaxedCFLP lpSol [] (getPossibleCenters relaxedCFLP [])
       cs' = c2 relaxedCFLP cs
-  when showCluster1 $ do
-    putStrLn "C1:"
-    print cs
-  when showCluster2 $ do
-    putStrLn "C2:"
-    print cs'
+  infoM "cflp" "C1:"
+  infoM "cflp" $ show cs
+  infoM "cflp" "C2:"
+  infoM "cflp" $ show cs'
 
 
-  putStrLn "Solving SNCFLPs"
+  infoM "cflp" "Solving SNCFLPs"
   let sncflps  = mapMaybe (clusterToSNCFLP relaxedCFLP) cs'
       sncflps' = map (solveSNCFLP . snd) sncflps
-  when showSNCFLPs $ do
-    putStrLn "SNCFLPs:"
-    print sncflps'
+  infoM "cflp" "SNCFLPs:"
+  infoM "cflp" $ show sncflps'
 
-  putStrLn "Collecting opened facilities"
+  infoM "cflp" "Collecting opened facilities"
   let openedFs   = getOpenedFacilitiesFromClusters relaxedCFLP cs'
       openedFs'  = getOpenedFacilitiesFromSNCFLPs relaxedCFLP sncflps'
       openedFs'' = openedFs ++ openedFs'
       openedIds  = map facilityId openedFs''
-  when showOpenFs $ do
-    putStrLn "Open facilities:"
-    print openedIds
+  infoM "cflp" "Open facilities:"
+  infoM "cflp" $ show openedIds
 
   let openedCFLP = CFLP (filter (\f -> facilityId f `elem` openedIds)
                          (facilities relaxedCFLP))
                         (clients relaxedCFLP)
                         (distances relaxedCFLP)
-  when showOpenCFLP $ do
-    putStrLn "Open CFLP:"
-    print openedCFLP
+  infoM "cflp" "Open CFLP:"
+  infoM "cflp" $ show openedCFLP
 
   let mcf = fromOpenedCFLP openedCFLP
-  when showMCF $ do
-    putStrLn "MCF:"
-    print mcf
+  infoM "cflp" "MCF:"
+  infoM "cflp" $ show mcf
 
-  putStrLn "Solving assignment problem"
+  infoM "cflp" "Solving assignment problem"
   (mcfSol, stdout) <- catchOutput $ solLp "MCF" mcf
   let openedMcf = assignFacilitiesMCF openedCFLP mcfSol
       openedObj = (solObj mcfSol) + sum (map f (facilities openedCFLP))
-  when showOpenMCF $ do
-    putStrLn "Open MCF:"
-    print openedMcf
+  infoM "cflp" "Open MCF:"
+  infoM "cflp" $ show openedMcf
 
   return (openedObj, openedMcf)
