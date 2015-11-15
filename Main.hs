@@ -23,6 +23,7 @@ import           System.IO
 import           Text.Printf
 
 import           Foreign.C
+import           System.CPUTime
 import           System.Environment
 
 import           System.Log.Formatter
@@ -131,6 +132,14 @@ benchCFLP ("bench" : n : m : _) = do
 
   putStrLn (printf "Exact: %.2f, Approx: %.2f, Ratio: %.8f" exactObj approxObj (approxObj/exactObj))
   return ()
+
+bench' :: IO a -> IO (a, Double)
+bench' action = do
+  start <- getCPUTime
+  v <- action
+  end <- getCPUTime
+  let diff = fromIntegral $ end - start
+  return (v, diff/10^12)
 
 
 criterionBench = defaultMain [
