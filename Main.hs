@@ -109,29 +109,41 @@ runCFLP ("run" : n : m : _) = do
   writeSol cflp'
 runCFLP _ = usage
 
-benchCFLP :: [String] -> IO ()
-benchCFLP ("bench" : n : m : _) = do
-  let n' = read n :: Int
+benchCFLP :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
+benchCFLP ("bench" : n : m : r : s : _) = do
   -- Update logger for no output
   updateGlobalLogger "cflp" (setLevel ERROR)
 
+  let r' = read r :: Int
+      s' = read s :: Int
+      n' = read n :: Int
       m' = read m :: Int
-  cflp <- getFeasibleRandomCFLP n' m'
 
-  -- Exact
-  (exactObj, exactSol) <- solExact cflp
+  putStrLn "id,n,m,exactTime,approxTime,ratio"
 
-  -- Approx
-  (approxObj, approxSol) <- solApprox cflp
+  liftM concat $ liftM concat $
+    forM [(i,j) | i <- [1..n'], j <- [1..i]] $ \(n, m) -> do
+      -- repeat for better guessing the ratio
+      forM [0..r'] $ \r -> do
+        cflp <- getFeasibleRandomCFLP n m
 
-  putStrLn "Opened Facilities (exact):"
-  putStrLn (showOpenFacilities exactSol)
+        -- repeat for exact time measurements
+        forM [0..s'] $ \s -> do
+          -- Exact
+          ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
 
-  putStrLn "Opened Facilities (approx):"
-  putStrLn (showOpenFacilities approxSol)
+          -- Approx
+          ((approxObj, approxSol), approxTime) <- bench' $ solApprox cflp
 
-  putStrLn (printf "Exact: %.2f, Approx: %.2f, Ratio: %.8f" exactObj approxObj (approxObj/exactObj))
-  return ()
+          -- n, m, exactTime, approxTime, ratio
+          putStrLn (printf "%d,%d,%d,%.8f,%.8f,%.8f"
+                    r n m
+                    exactTime approxTime (approxObj/exactObj))
+
+          return (r, n, m, exactTime, approxTime, (approxObj/exactObj))
+
+benchCFLP _ = do usage
+                 return []
 
 bench' :: IO a -> IO (a, Double)
 bench' action = do
@@ -179,7 +191,8 @@ main = do
     ("read"      : _) -> readCFLP args
     ("read-mip"  : _) -> readMip args
     ("run"       : _) -> runCFLP args
-    ("bench"     : _) -> benchCFLP args
+    ("bench"     : _) -> do result <- benchCFLP args
+                            print result
     ("criterion" : _) -> criterionBench
     _ -> usage
 
