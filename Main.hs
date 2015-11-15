@@ -8,8 +8,8 @@ import           Control.Monad.Trans.Maybe
 import           Data.Array
 import           Data.Function
 import           Data.List                 (find, group, intercalate, maximumBy,
-                                            minimumBy, sort, sortBy, splitAt,
-                                            zipWith4, zipWith5, (\\))
+                                            minimumBy, nub, sort, sortBy,
+                                            splitAt, zipWith4, zipWith5, (\\))
 import qualified Data.Map.Strict           as Map
 import           Data.Maybe
 import qualified Data.Set                  as Set
@@ -110,12 +110,12 @@ runCFLP ("run" : n : m : _) = do
 runCFLP _ = usage
 
 chooseLogPoints :: Int -> Int -> [Int]
-chooseLogPoints n' k' = [ round $ exp x | x <- [0,log n/k..log n]]
+chooseLogPoints n' k' = nub [ round $ exp x | x <- [0,log n/k..log n]]
   where n = fromIntegral n'
         k = fromIntegral k'
 
 benchCFLP :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
-benchCFLP ("bench" : n : m : r : s : _) = do
+benchCFLP ("bench" : n : m : k : r : s : _) = do
   -- Update logger for no output
   updateGlobalLogger "cflp" (setLevel ERROR)
 
@@ -123,11 +123,12 @@ benchCFLP ("bench" : n : m : r : s : _) = do
       s' = read s :: Int
       n' = read n :: Int
       m' = read m :: Int
-      k = 5
+      k' = read k :: Int
+
   putStrLn "id,n,m,exactTime,approxTime,ratio"
 
   liftM concat $ liftM concat $
-    forM [(i,j) | i <- chooseLogPoints n' k, j <- chooseLogPoints i k] $ \(n, m) -> do
+    forM [(i,j) | i <- chooseLogPoints n' k', j <- chooseLogPoints m' k', j <= i] $ \(n, m) -> do
       -- repeat for better guessing the ratio
       forM [0..r'] $ \r -> do
         cflp <- getFeasibleRandomCFLP n m
