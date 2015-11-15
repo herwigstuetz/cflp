@@ -109,6 +109,11 @@ runCFLP ("run" : n : m : _) = do
   writeSol cflp'
 runCFLP _ = usage
 
+chooseLogPoints :: Int -> Int -> [Int]
+chooseLogPoints n' k' = [ round $ exp x | x <- [0,log n/k..log n]]
+  where n = fromIntegral n'
+        k = fromIntegral k'
+
 benchCFLP :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
 benchCFLP ("bench" : n : m : r : s : _) = do
   -- Update logger for no output
@@ -118,11 +123,11 @@ benchCFLP ("bench" : n : m : r : s : _) = do
       s' = read s :: Int
       n' = read n :: Int
       m' = read m :: Int
-
+      k = 5
   putStrLn "id,n,m,exactTime,approxTime,ratio"
 
   liftM concat $ liftM concat $
-    forM [(i,j) | i <- [1..n'], j <- [1..i]] $ \(n, m) -> do
+    forM [(i,j) | i <- chooseLogPoints n' k, j <- chooseLogPoints i k] $ \(n, m) -> do
       -- repeat for better guessing the ratio
       forM [0..r'] $ \r -> do
         cflp <- getFeasibleRandomCFLP n m
