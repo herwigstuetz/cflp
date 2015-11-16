@@ -125,22 +125,24 @@ benchCFLP ("bench" : n : m : k : r : s : _) = do
     forM [(i,j) | i <- chooseLogPoints n' k', j <- chooseLogPoints m' k', j <= i] $ \(n, m) -> do
       -- repeat for better guessing the ratio
       forM [0..r'] $ \r -> do
-        cflp <- getFeasibleRandomCFLP n m
+        cflp <- randomEvenDistCFLP n m
 
-        -- repeat for exact time measurements
-        forM [0..s'] $ \s -> do
-          -- Exact
-          ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
+        if (isFeasible cflp) then
+          -- repeat for exact time measurements
+          forM [0..s'] $ \s -> do
+            -- Exact
+            ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
 
-          -- Approx
-          ((approxObj, approxSol), approxTime) <- bench' $ solApprox cflp
+            -- Approx
+            ((approxObj, approxSol), approxTime) <- bench' $ solApprox cflp
 
-          -- n, m, exactTime, approxTime, ratio
-          putStrLn (printf "%d,%d,%d,%.8f,%.8f,%.8f"
-                    r n m
-                    exactTime approxTime (approxObj/exactObj))
+            -- n, m, exactTime, approxTime, ratio
+            putStrLn (printf "%d,%d,%d,%.8f,%.8f,%.8f"
+                      r n m
+                      exactTime approxTime (approxObj/exactObj))
 
-          return (r, n, m, exactTime, approxTime, (approxObj/exactObj))
+            return (r, n, m, exactTime, approxTime, (approxObj/exactObj))
+          else return []
 
 benchCFLP _ = do usage
                  return []
