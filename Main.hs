@@ -58,12 +58,6 @@ catchOutput f = do
   removeFile tmpf
   return (result, str)
 
-getFeasibleRandomCFLP n m = do
-  cflp <- randomCFLP n m
-  if isFeasible cflp
-    then return cflp
-    else getFeasibleRandomCFLP n m
-
 usage :: IO ()
 usage = putStrLn "write n m filename|read filename|read-mip filename|run n m|bench n m"
 
@@ -223,26 +217,26 @@ fromAmat amat = array ((0,0), (n,m)) [((i,j),0.0) | i<-[0..n], j<-[0..m]] // a
     a = map (\(Row i, Col j, x) -> ((i, j), x)) amat
 
 
-randomFacilities :: Int -> IO Facilities
-randomFacilities n =
-  do let range = (0.0, 100.0)
+randomFacilities :: Int -> (Double, Double) -> (Double, Double)-> IO Facilities
+randomFacilities n costRange capRange =
+  do-- let range = (0.0, 100.0)
      g <- newStdGen
      h <- newStdGen
-     let f = take n (randomRs range g)
-     let u = take n (randomRs range h)
+     let f = take n (randomRs costRange g)
+     let u = take n (randomRs capRange h)
      return $ zipWith4 Facility [0,1..] f u [0.0, 0.0..]
 
-randomClients :: Int -> IO Clients
-randomClients m = do
-  let range = (0.0, 100.0)
+randomClients :: Int -> (Double, Double) -> IO Clients
+randomClients m range = do
+--  let range = (0.0, 100.0)
   g <- newStdGen
   let d = take m $ randomRs range g
   return $ zipWith Client [0..] d
 
 
-randomDistances :: Int -> Int -> IO Distances
-randomDistances n m =
-  do let range = (0.0, 100.0)
+randomDistances :: Int -> Int -> (Double, Double) -> IO Distances
+randomDistances n m range =
+  do --let range = (0.0, 100.0)
      g <- newStdGen
      h <- newStdGen
      let f = zip [0,1..] $ take n $ uncurry zip $ splitAt n (randomRs range g)
@@ -250,12 +244,20 @@ randomDistances n m =
      return $ array ((0,0),(n-1,m-1)) [ ((i, j), Distance i j (sqrt ((cx-fx)**2 + (cy-fy)**2)) 0.0) | (i, (fx,fy)) <- f
                                                                                                     , (j, (cx,cy)) <- c]
 
-randomCFLP :: Int -> Int -> IO CFLP
-randomCFLP n m =
-  do fs <- randomFacilities n
-     cs <- randomClients m
-     ds <- randomDistances n m
+getFeasibleCFLP gen = do
+  cflp <- gen
+  if isFeasible cflp
+    then return cflp
+    else getFeasibleCFLP gen
+
+randomEvenDistCFLP :: Int -> Int -> IO CFLP
+randomEvenDistCFLP n m =
+  do fs <- randomFacilities n (0.0, 100.0) (0.0, 100.0)
+     cs <- randomClients m (0.0, 100.0)
+     ds <- randomDistances n m (0.0, 100.0)
      return $ CFLP fs cs ds
+
+getFeasibleRandomCFLP n m = getFeasibleCFLP $ randomEvenDistCFLP n m
 
 
 openFacility :: Facility -> Double -> Facility
