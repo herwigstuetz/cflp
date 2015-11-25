@@ -193,8 +193,7 @@ main = do
     ("read"      : _) -> readCFLP args
     ("read-mip"  : _) -> readMip args
     ("run"       : _) -> runCFLP args
-    ("bench"     : _) -> do result <- benchCFLP args
-                            print result
+    ("bench"     : _) -> void $ benchCFLP args
     ("criterion" : _) -> criterionBench
     _ -> usage
 
