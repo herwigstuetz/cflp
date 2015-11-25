@@ -108,6 +108,11 @@ chooseLogPoints n' k' = nub [ round $ exp x | x <- [0,log n/k..log n]]
   where n = fromIntegral n'
         k = fromIntegral k'
 
+choosePoints :: Int -> Int -> [Int]
+choosePoints n' k' = map round [1,n/k..n]
+  where n = fromIntegral n'
+        k = fromIntegral k'
+
 benchCFLP :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
 benchCFLP ("bench" : n : m : k : r : s : _) = do
   -- Update logger for no output
@@ -122,7 +127,7 @@ benchCFLP ("bench" : n : m : k : r : s : _) = do
   putStrLn "id,n,m,exactTime,approxTime,ratio"
 
   liftM (concat . concat) $
-    forM [(i,j) | i <- chooseLogPoints n' k', j <- chooseLogPoints m' k', j <= i] $ \(n, m) -> do
+    forM [(i,j) | i <- choosePoints n' k', j <- choosePoints m' k', j <= i] $ \(n, m) -> do
       -- repeat for better guessing the ratio
       forM [1..r'] $ \r -> do
         cflp <- randomEvenDistCFLP n m
