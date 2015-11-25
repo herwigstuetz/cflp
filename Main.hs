@@ -145,6 +145,9 @@ benchCFLP ("bench" : n : m : k : r : s : _) = do
             putStrLn (printf "%d,%d,%d,%.8f,%.8f,%.8f"
                       r n m
                       exactTime approxTime (approxObj/exactObj))
+            when (approxObj/exactObj < 1.0) $ do
+              putStrLn "ERROR: Ratio < 1.0"
+              print cflp
 
             return (r, n, m, exactTime, approxTime, (approxObj/exactObj))
           else return []
