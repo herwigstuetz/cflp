@@ -77,7 +77,9 @@ readCFLP ("read" : fileName : _) = do
     Right cflp'' ->
       if not $ isFeasible cflp''
       then error "CFLP not feasible"
-      else do cflp''' <- solApprox cflp''
+      else do (obj, cflp''') <- solApprox cflp''
+              putStrLn $ "Objective: " ++ show obj
+              putStrLn $ showCFLPSolution cflp'''
               return ()
 readCFLP _ = usage
 
