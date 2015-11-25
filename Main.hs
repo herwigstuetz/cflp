@@ -147,7 +147,9 @@ benchCFLP ("bench" : n : m : k : r : s : _) = do
                       exactTime approxTime (approxObj/exactObj))
             when (approxObj/exactObj < 1.0) $ do
               putStrLn "ERROR: Ratio < 1.0"
-              print cflp
+              putStrLn $ showCFLP'' cflp
+              putStrLn $ showCFLPSolution exactSol
+              putStrLn $ showCFLPSolution approxSol
 
             return (r, n, m, exactTime, approxTime, (approxObj/exactObj))
           else return []
