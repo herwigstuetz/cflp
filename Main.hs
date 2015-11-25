@@ -578,8 +578,8 @@ solApprox cflp = do
   infoM "cflp" "Open facilities:"
   infoM "cflp" $ show openedIds
 
-  let openedCFLP = CFLP (filter (\f -> facilityId f `elem` openedIds)
-                         (facilities relaxedCFLP))
+  let openedCFLP = CFLP (map (\f -> f { y = 1.0 }) (filter (\f -> facilityId f `elem` openedIds)
+                                                    (facilities relaxedCFLP)))
                         (clients relaxedCFLP)
                         (distances relaxedCFLP)
   infoM "cflp" "Open CFLP:"
