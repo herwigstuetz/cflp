@@ -535,6 +535,14 @@ getOpenedFacilitiesFromSNCFLPs cflp sncflps = fs
         fs = mapMaybe (findFacility (facilities cflp) . snFacilityId) nk
 
 
+updateFacilities :: Facilities -> Facilities -> Facilities
+updateFacilities orig new = map update orig
+  where update f =
+          case findFacility new (facilityId f) of
+            Just f' -> f'
+            Nothing -> f
+
+
 solExact :: CFLP -> IO (Double, CFLP)
 solExact cflp =
   case fromCFLP cflp of
@@ -578,10 +586,11 @@ solApprox cflp = do
   infoM "cflp" "Open facilities:"
   infoM "cflp" $ show openedIds
 
-  let openedCFLP = CFLP (map (\f -> f { y = 1.0 }) (filter (\f -> facilityId f `elem` openedIds)
-                                                    (facilities relaxedCFLP)))
-                        (clients relaxedCFLP)
-                        (distances relaxedCFLP)
+  let openedCFLP = CFLP (map (\f -> f { y = 1.0 })
+                         (filter (\f -> facilityId f `elem` openedIds)
+                          (facilities cflp)))
+                        (clients cflp)
+                        (distances cflp)
   infoM "cflp" "Open CFLP:"
   infoM "cflp" $ show openedCFLP
 
@@ -596,4 +605,12 @@ solApprox cflp = do
   infoM "cflp" "Open MCF:"
   infoM "cflp" $ show openedMcf
 
-  return (openedObj, openedMcf)
+  infoM "cflp" "Setting solution into original problem"
+  let solvedCFLP = CFLP (updateFacilities
+                         (facilities cflp)
+                         (facilities openedMcf))
+                        (clients openedMcf)
+                        (distances openedMcf)
+
+
+  return (openedObj, solvedCFLP)
