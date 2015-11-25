@@ -93,6 +93,7 @@ readMip ("read-mip" : fileName : _) = do
       if not $ isFeasible cflp''
       then error "CFLP not feasible"
       else do (obj, sol) <- solExact cflp''
+              putStrLn $ "Objective: " ++ show obj
               writeSol sol
 readMip _ = usage
 
