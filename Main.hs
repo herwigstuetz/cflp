@@ -121,7 +121,7 @@ benchCFLP ("bench" : n : m : k : r : s : _) = do
 
   putStrLn "id,n,m,exactTime,approxTime,ratio"
 
-  liftM concat $ liftM concat $
+  liftM (concat . concat) $
     forM [(i,j) | i <- chooseLogPoints n' k', j <- chooseLogPoints m' k', j <= i] $ \(n, m) -> do
       -- repeat for better guessing the ratio
       forM [0..r'] $ \r -> do
