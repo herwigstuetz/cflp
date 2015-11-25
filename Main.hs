@@ -524,13 +524,13 @@ greedySolve (v : vs) d | d < v  = d : greedySolve vs 0.0
                        | d >= v = v : greedySolve vs (d - v)
 
 getOpenedFacilitiesFromClusters :: CFLP -> [Cluster] -> Facilities
-getOpenedFacilitiesFromClusters cflp clusters = filter (\i -> y i == 1.0) fs
+getOpenedFacilitiesFromClusters cflp clusters = filter (\i -> y i > 0.0) fs
   where nk = concatMap clusterElements clusters
         fs = mapMaybe (findFacility (facilities cflp)) nk
 
 getOpenedFacilitiesFromSNCFLPs :: CFLP -> [SNCFLP] -> Facilities
 getOpenedFacilitiesFromSNCFLPs cflp sncflps = fs
-  where nk = filter (\f -> snDemand f == 1.0 ) $ concatMap snFacilities sncflps
+  where nk = filter (\f -> snDemand f > 0.0 ) $ concatMap snFacilities sncflps
         fs = mapMaybe (findFacility (facilities cflp) . snFacilityId) nk
 
 
