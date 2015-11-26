@@ -236,25 +236,22 @@ fromAmat amat = array ((0,0), (n,m)) [((i,j),0.0) | i<-[0..n], j<-[0..m]] // a
 
 randomFacilities :: Int -> (Double, Double) -> (Double, Double)-> IO Facilities
 randomFacilities n costRange capRange =
-  do-- let range = (0.0, 100.0)
-     g <- newStdGen
+  do g <- newStdGen
      h <- newStdGen
      let f = take n (randomRs costRange g)
      let u = take n (randomRs capRange h)
      return $ zipWith4 Facility [0,1..] f u [0.0, 0.0..]
 
 randomClients :: Int -> (Double, Double) -> IO Clients
-randomClients m range = do
---  let range = (0.0, 100.0)
-  g <- newStdGen
-  let d = take m $ randomRs range g
-  return $ zipWith Client [0..] d
+randomClients m range =
+  do g <- newStdGen
+     let d = take m $ randomRs range g
+     return $ zipWith Client [0..] d
 
 
 randomDistances :: Int -> Int -> (Double, Double) -> IO Distances
 randomDistances n m range =
-  do --let range = (0.0, 100.0)
-     g <- newStdGen
+  do g <- newStdGen
      h <- newStdGen
      let f = zip [0,1..] $ take n $ uncurry zip $ splitAt n (randomRs range g)
      let c = zip [0,1..] $ take m $ uncurry zip $ splitAt m (randomRs range h)
@@ -262,11 +259,11 @@ randomDistances n m range =
                                       | (i, (fx,fy)) <- f
                                       , (j, (cx,cy)) <- c]
 
-getFeasibleCFLP gen = do
-  cflp <- gen
-  if isFeasible cflp
-    then return cflp
-    else getFeasibleCFLP gen
+getFeasibleCFLP gen =
+  do cflp <- gen
+     if isFeasible cflp
+       then return cflp
+       else getFeasibleCFLP gen
 
 randomEvenDistCFLP :: Int -> Int -> IO CFLP
 randomEvenDistCFLP n m =
@@ -288,7 +285,6 @@ getFeasibleRandomCFLP n m = getFeasibleCFLP $ randomEvenDistCFLP n m
 openFacility :: Facility -> Double -> Facility
 openFacility f y = f { y = y }
 
---getSol :: VS.Vector a -> Facility -> a
 getSol sol f = sol VS.! facilityId f
 
 fromCpxSolution :: CFLP -> CpxSolution -> CFLP
