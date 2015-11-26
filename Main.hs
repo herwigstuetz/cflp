@@ -258,8 +258,9 @@ randomDistances n m range =
      h <- newStdGen
      let f = zip [0,1..] $ take n $ uncurry zip $ splitAt n (randomRs range g)
      let c = zip [0,1..] $ take m $ uncurry zip $ splitAt m (randomRs range h)
-     return $ array ((0,0),(n-1,m-1)) [ ((i, j), Distance i j (sqrt ((cx-fx)**2 + (cy-fy)**2)) 0.0) | (i, (fx,fy)) <- f
-                                                                                                    , (j, (cx,cy)) <- c]
+     return $ array ((0,0),(n-1,m-1)) [ ((i, j), Distance i j (sqrt ((cx-fx)**2 + (cy-fy)**2)) 0.0)
+                                      | (i, (fx,fy)) <- f
+                                      , (j, (cx,cy)) <- c]
 
 getFeasibleCFLP gen = do
   cflp <- gen
@@ -292,8 +293,8 @@ getSol sol f = sol VS.! facilityId f
 
 fromCpxSolution :: CFLP -> CpxSolution -> CFLP
 fromCpxSolution cflp sol = cflp { facilities = openFacilities (facilities cflp) ys
-                                   , distances = satisfyDemand cflp xs
-                                   }
+                                , distances = satisfyDemand cflp xs
+                                }
   where n = length $ facilities cflp
         ys = take n $ VS.toList (solX (traceMsgId "sol " sol))
         xs = drop n $ VS.toList (solX sol)
