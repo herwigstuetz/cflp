@@ -117,7 +117,7 @@ choosePoints n' k' = map round [1,n/k..n]
         k = fromIntegral k'
 
 benchCFLP :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
-benchCFLP ("bench" : n : m : k : r : s : _) = do
+benchCFLP ("bench" : testCase : n : m : k : r : s : _) = do
   -- Update logger for no output
   updateGlobalLogger "cflp" (setLevel ERROR)
 
@@ -133,7 +133,10 @@ benchCFLP ("bench" : n : m : k : r : s : _) = do
     forM [(i,j) | i <- choosePoints n' k', j <- choosePoints m' k', j <= i] $ \(n, m) -> do
       -- repeat for better guessing the ratio
       forM [1..r'] $ \r -> do
-        cflp <- randomEvenDistCFLP n m
+
+        cflp <- case testCase of
+          "uniform1" -> randomEvenDistCFLP n m
+          _ -> randomEvenDistCFLP n m
 
         if (isFeasible cflp) then
           -- repeat for exact time measurements
