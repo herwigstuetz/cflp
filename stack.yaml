@@ -1,0 +1,7 @@
+flags: {}
+packages:
+- '.'
+- cplex-haskell/cplex-bindings/
+- cplex-haskell/cplex/
+extra-deps: []
+resolver: lts-3.17
