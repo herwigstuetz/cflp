@@ -40,6 +40,7 @@ import           CPLEX.Param
 
 import           AP
 import           CFLP
+import           CFLPPlot
 import           MIP
 
 import           Criterion.Main
@@ -103,6 +104,7 @@ runCFLP ("run" : n : m : _) = do
       m' = read m :: Int
   cflp <- getFeasibleRandomCFLP n' m'
   (obj, cflp') <- solApprox cflp
+  plotCFLP cflp' "solved.png"
   writeSol cflp'
 runCFLP _ = usage
 
