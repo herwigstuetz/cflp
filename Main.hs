@@ -260,7 +260,7 @@ randomClients m range posRange =
 
 
 distance :: Position -> Position -> Double
-distance (Position x1 y1) (Position x2 y2) = sqrt (x1 - x2)**2 + (y1 - y2)**2
+distance (Position x1 y1) (Position x2 y2) = sqrt ((x1 - x2)**2 + (y1 - y2)**2)
 
 locationDistances :: Facilities -> Clients -> Distances
 locationDistances fs cs =
