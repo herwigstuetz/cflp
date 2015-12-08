@@ -234,21 +234,42 @@ fromAmat amat = array ((0,0), (n,m)) [((i,j),0.0) | i<-[0..n], j<-[0..m]] // a
     m = maximum $ map (\(_, Col j, _) -> j) amat
     a = map (\(Row i, Col j, x) -> ((i, j), x)) amat
 
+randomPosition :: (Double, Double) -> (Double, Double) -> IO Position
+randomPosition xRange yRange =
+  do p1 <- newStdGen
+     p2 <- newStdGen
+     let (xPos, _) = randomR xRange p1
+         (yPos, _) = randomR yRange p2
+     return $ Position xPos yPos
 
-randomFacilities :: Int -> (Double, Double) -> (Double, Double)-> IO Facilities
-randomFacilities n costRange capRange =
+randomFacilities :: Int -> (Double, Double) -> (Double, Double) -> (Position, Position) -> IO Facilities
+randomFacilities n costRange capRange posRange =
   do g <- newStdGen
      h <- newStdGen
      let f = take n (randomRs costRange g)
-     let u = take n (randomRs capRange h)
-     return $ zipWith4 Facility [0,1..] f u [0.0, 0.0..]
+         u = take n (randomRs capRange h)
+     poss <- replicateM n (randomPosition (xRange posRange) (yRange posRange))
+     return $ zipWith5 Facility [0,1..] f u [0.0, 0.0..] poss
 
-randomClients :: Int -> (Double, Double) -> IO Clients
-randomClients m range =
+randomClients :: Int -> (Double, Double) -> (Position, Position) -> IO Clients
+randomClients m range posRange =
   do g <- newStdGen
      let d = take m $ randomRs range g
-     return $ zipWith Client [0..] d
+     poss <- replicateM m (randomPosition (xRange posRange) (yRange posRange))
+     return $ zipWith3 Client [0..] d poss
 
+
+distance :: Position -> Position -> Double
+distance (Position x1 y1) (Position x2 y2) = sqrt (x1 - x2)**2 + (y1 - y2)**2
+
+locationDistances :: Facilities -> Clients -> Distances
+locationDistances fs cs =
+  let n = length fs
+      m = length cs
+  in array ((0,0), (n-1, m-1)) [ ((i, j), Distance i j d 0.0)
+                               | Facility i _ _ _ fPos <- fs
+                               , Client j _ cPos <- cs
+                               , let d = distance fPos cPos]
 
 randomDistances :: Int -> Int -> (Double, Double) -> IO Distances
 randomDistances n m range =
@@ -268,17 +289,15 @@ getFeasibleCFLP gen =
 
 randomEvenDistCFLP :: Int -> Int -> IO CFLP
 randomEvenDistCFLP n m =
-  do fs <- randomFacilities n (0.0, 100.0) (0.0, 100.0)
-     cs <- randomClients m (0.0, 100.0)
-     ds <- randomDistances n m (0.0, 100.0)
-     return $ CFLP fs cs ds
+  do fs <- randomFacilities n (0.0, 100.0) (0.0, 100.0) (Position 0.0 100.0, Position 0.0 100.0)
+     cs <- randomClients m (0.0, 100.0) (Position 0.0 100.0, Position 0.0 100.0)
+     return $ CFLP fs cs (locationDistances fs cs)
 
 randomEvenDist2CFLP :: Int -> Int -> IO CFLP
 randomEvenDist2CFLP n m =
-  do fs <- randomFacilities n (0.0, 100.0) (0.0, 200.0)
-     cs <- randomClients m (50.0, 100.0)
-     ds <- randomDistances n m (0.0, 100.0)
-     return $ CFLP fs cs ds
+  do fs <- randomFacilities n (0.0, 100.0) (0.0, 200.0) (Position 0.0 100.0, Position 0.0 100.0)
+     cs <- randomClients m (50.0, 100.0) (Position 0.0 100.0, Position 0.0 100.0)
+     return $ CFLP fs cs (locationDistances fs cs)
 
 getFeasibleRandomCFLP n m = getFeasibleCFLP $ randomEvenDistCFLP n m
 
@@ -393,7 +412,7 @@ maybeToGuard (Just b) = b
 calculateBj :: [Cluster] -> CFLP -> ClientId -> [FacilityId]
 calculateBj cluster cflp j = bj
   where fs = facilities cflp
-        fj = [i | (Facility i _ _ _) <- fs, let xi = head $ getXs (distances cflp) [i] [j], xi > 0.0]
+        fj = [i | (Facility i _ _ _ _) <- fs, let xi = head $ getXs (distances cflp) [i] [j], xi > 0.0]
         nk = concatMap (\(Cluster k nk) -> nk) cluster
         ks = map clusterCenter cluster
         ds = distances cflp
@@ -446,7 +465,7 @@ updateCluster as cs = foldl updateCluster' cs as
 -- Assign remaining facilities to closest cluster center
 c2 :: CFLP -> [Cluster] -> [Cluster]
 c2 cflp clusters = updateCluster facilityAssignment clusters
-  where openFacilities = [i | (Facility i _ _ yi) <- facilities cflp, yi > 0.0]
+  where openFacilities = [i | (Facility i _ _ yi _) <- facilities cflp, yi > 0.0]
         clusteredFacilities = concatMap clusterElements clusters
         remainingFacilities = openFacilities \\ clusteredFacilities
         facilityAssignment = zip remainingFacilities $ map (nearestClient cflp) remainingFacilities

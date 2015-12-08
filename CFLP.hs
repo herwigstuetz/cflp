@@ -24,18 +24,30 @@ import Text.Parsec
 import           CPLEX
 import           MIP
 
+data Position = Position Double Double
+                deriving (Show, Eq)
+
+
+xRange :: (Position, Position) -> (Double, Double)
+xRange (Position x1 y1, Position x2 y2) = (x1, x2)
+
+yRange :: (Position, Position) -> (Double, Double)
+yRange (Position x1 y1, Position x2 y2) = (y1, y2)
+
 type FacilityId = Int
-data Facility = Facility { facilityId :: FacilityId
-                         , f          :: Double -- opening cost
-                         , u          :: Double -- capacity
-                         , y          :: Double -- fraction opened
+data Facility = Facility { facilityId  :: FacilityId
+                         , f           :: Double   -- opening cost
+                         , u           :: Double   -- capacity
+                         , y           :: Double   -- fraction opened
+                         , facilityPos :: Position -- position on plane
                          } deriving (Show, Eq)
 
 type Facilities = [Facility]
 
 type ClientId = Int
-data Client = Client { clientId :: ClientId
-                     , d        :: Double -- demand
+data Client = Client { clientId  :: ClientId
+                     , d         :: Double   -- demand
+                     , clientPos :: Position -- position on plane
                      } deriving (Show, Eq)
 
 type Clients = [Client]
@@ -72,12 +84,12 @@ generateId = do
 createFacility :: (Double, Double) -> IdManagement Facility
 createFacility (f, u) = do
   id <- generateId
-  return $ Facility id f u 0.0
+  return $ Facility id f u 0.0 (Position 0.0 0.0)
 
 createClient :: Double -> IdManagement Client
 createClient d = do
   id <- generateId
-  return $ Client id d
+  return $ Client id d (Position 0.0 0.0)
 
 createDistance :: [Facility] -> [Client] -> (Int, Int, Double) -> Maybe Distance
 createDistance fs cs (i, j, c) =
@@ -244,11 +256,11 @@ isFeasible (CFLP fs cs _) = sum (map u fs) >= sum ( map d cs)
 
 findClient :: Clients -> Int -> Maybe Client
 findClient cs j = find isClient cs
-  where isClient (Client id _) = id == j
+  where isClient (Client id _ _) = id == j
 
 findFacility :: Facilities -> Int -> Maybe Facility
 findFacility fs i = find isFacility fs
-  where isFacility (Facility id _ _ _) = id == i
+  where isFacility (Facility id _ _ _ _) = id == i
 
 findDistance :: Distances -> Int -> Int -> Maybe Distance
 findDistance ds i j = find isDistance ds
@@ -272,7 +284,7 @@ getDistanceById ds i j = Just . c $ ds!(i,j)
 
 createObjFromCFLP :: CFLP -> [Double]
 createObjFromCFLP (CFLP fac clients dists) =
-  [f | (Facility _ f _ _) <- fac]
+  [f | (Facility _ f _ _ _) <- fac]
 
 seqTuple :: (a, b, Maybe c) -> Maybe (a, b, c)
 seqTuple (a, b, Just c) = Just (a, b, c)
