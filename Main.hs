@@ -199,8 +199,9 @@ writeSol cflp = do
 main :: IO ()
 main = do
   -- Set up logger
-  h <- fileHandler "cflp.log" DEBUG >>= \lh -> return $
-                                               setFormatter lh (simpleLogFormatter "[$time : $loggername : $prio] $msg")
+  h <- fileHandler "cflp.log" DEBUG
+       >>= \lh -> return $
+                  setFormatter lh (simpleLogFormatter "[$time : $loggername : $prio] $msg")
   updateGlobalLogger rootLoggerName (addHandler h)
   updateGlobalLogger "cflp" (setLevel INFO)
   args <- getArgs
