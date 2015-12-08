@@ -289,14 +289,14 @@ getFeasibleCFLP gen =
 
 randomEvenDistCFLP :: Int -> Int -> IO CFLP
 randomEvenDistCFLP n m =
-  do fs <- randomFacilities n (0.0, 100.0) (0.0, 100.0) (Position 0.0 100.0, Position 0.0 100.0)
-     cs <- randomClients m (0.0, 100.0) (Position 0.0 100.0, Position 0.0 100.0)
+  do fs <- randomFacilities n (0.0, 100.0) (0.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
+     cs <- randomClients m (0.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      return $ CFLP fs cs (locationDistances fs cs)
 
 randomEvenDist2CFLP :: Int -> Int -> IO CFLP
 randomEvenDist2CFLP n m =
-  do fs <- randomFacilities n (0.0, 100.0) (0.0, 200.0) (Position 0.0 100.0, Position 0.0 100.0)
-     cs <- randomClients m (50.0, 100.0) (Position 0.0 100.0, Position 0.0 100.0)
+  do fs <- randomFacilities n (0.0, 100.0) (0.0, 200.0) (Position 0.0 0.0, Position 100.0 100.0)
+     cs <- randomClients m (50.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      return $ CFLP fs cs (locationDistances fs cs)
 
 getFeasibleRandomCFLP n m = getFeasibleCFLP $ randomEvenDistCFLP n m
