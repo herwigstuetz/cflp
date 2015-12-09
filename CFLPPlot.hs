@@ -18,24 +18,44 @@ plotCFLP cflp name = do
     layout_foreground .= (opaque black)
     layout_left_axis_visibility . axis_show_ticks .= False
 
+    -- the max radius in each area spot states the width of the
+    -- largest value. so if we set the max radius of all areas to
+    -- the same value, the largest circles of all colors will be
+    -- the same size even if they have different values.
+
+    -- so we set the max radius to the same value relative to the
+    -- maximum value of each plot. then the circles of all plots are
+    -- comparable.
+
+    -- we want the largest radius of a facility to be 20
+
+    let facilitySpots = spotDataFromFacilities $ facilities cflp
+        maxFacilityRadius = maximum $ map (\(_, _, x) -> x) facilitySpots
+
     plot $ liftEC $ do
       area_spots_title .= "facilities"
       area_spots_fillcolour .= blue
-      area_spots_max_radius .= 20
-      area_spots_values .= (spotDataFromFacilities $ facilities cflp)
+      area_spots_max_radius .= maxFacilityRadius / maxFacilityRadius * 20.0
+      area_spots_values .= facilitySpots
 
+    let openFacilitySpots = spotDataFromFacilities
+                            $ filter (\i -> y i == 1.0)
+                            $ facilities cflp
+        maxOpenFacilityRadius = maximum $ map (\(_, _, x) -> x) openFacilitySpots
+    plot $ liftEC $ do
+      area_spots_title .= "open facilities"
+      area_spots_fillcolour .= blue
+      area_spots_opacity .= 1.0
+      area_spots_max_radius .= maxOpenFacilityRadius / maxFacilityRadius * 20.0
+      area_spots_values .= openFacilitySpots
+
+    let clientSpots = spotDataFromClients $ clients cflp
+        maxClientRadius = maximum $ map (\(_, _, x) -> x) clientSpots
     plot $ liftEC $ do
       area_spots_title .= "clients"
       area_spots_fillcolour .= green
-      area_spots_max_radius .= 20
-      area_spots_values .= (spotDataFromClients $ clients cflp)
-
-    plot $ liftEC $ do
-      area_spots_title .= "facilities"
-      area_spots_fillcolour .= blue
-      area_spots_opacity .= 1.0
-      area_spots_max_radius .= 20
-      area_spots_values .= (spotDataFromFacilities $ filter (\i -> y i == 1.0) $ facilities cflp)
+      area_spots_max_radius .= maxClientRadius / maxFacilityRadius * 20.0
+      area_spots_values .= clientSpots
 
     let fs  = facilities cflp
         cs  = clients cflp
@@ -47,9 +67,8 @@ plotCFLP cflp name = do
                , x > 0.0]
         ds'' = map (\(f, c, x) -> (facilityPos f, clientPos c, x)) ds'
 
-
     void $ forM ds'' $ \ (f, c, x) -> do
-      setColors [opaque red]
+      setColors [opaque purple]
       plot $ line "lines" $ [map fromPosition [f, c]]
 
 
