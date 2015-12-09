@@ -19,7 +19,10 @@ executable test-project
   main-is:             Main.hs
 -- profiling:
   ghc-options:         -rtsopts -auto-all
-  -- other-modules:
+  other-modules:       AP
+                     , CFLP
+                     , CFLPPlot
+                     , MIP
   -- other-extensions:
   build-depends:       array >= 0.5.1.0
                      , base >=4.8 && <4.9
