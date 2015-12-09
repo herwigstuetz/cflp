@@ -57,7 +57,7 @@ fromPosition :: Position -> (Double, Double)
 fromPosition (Position x y) = (x, y)
 
 spotDataFromFacilities :: Facilities -> [(Double, Double, Double)]
-spotDataFromFacilities fs = map (\(Facility _ _ u _ (Position xPos yPos)) -> (u, xPos, yPos)) fs
+spotDataFromFacilities fs = map (\(Facility _ _ u _ (Position xPos yPos)) -> (xPos, yPos, u)) fs
 
 spotDataFromClients :: Clients -> [(Double, Double, Double)]
-spotDataFromClients cs = map (\(Client _ d (Position xPos yPos)) -> (d, xPos, yPos)) cs
+spotDataFromClients cs = map (\(Client _ d (Position xPos yPos)) -> (xPos, yPos, d)) cs
