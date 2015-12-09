@@ -47,12 +47,10 @@ plotCFLP cflp name = do
                , x > 0.0]
         ds'' = map (\(f, c, x) -> (facilityPos f, clientPos c, x)) ds'
 
-    void $ forM ds'' $ \ (f, c, x) ->
-      plot $ line "lines" [map fromPosition [f, c]]
 
-    --    Array (FacilityId, ClientId) Distance
-    -- -> List (Facility, Client, Distance)
-    -- -> List (facilityPos, clientPos, x)
+    void $ forM ds'' $ \ (f, c, x) -> do
+      setColors [opaque red]
+      plot $ line "lines" $ [map fromPosition [f, c]]
 
 
 fromPosition :: Position -> (Double, Double)
