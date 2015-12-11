@@ -110,6 +110,18 @@ createClientsFromList list = runIdManagement $ mapM createClient list
 createDistanceFromList :: [Facility] -> [Client] -> [(Int, Int, Double)] -> Maybe [Distance]
 createDistanceFromList fac clients = mapM (createDistance fac clients)
 
+distance :: Position -> Position -> Double
+distance (Position x1 y1) (Position x2 y2) = sqrt ((x1 - x2)**2 + (y1 - y2)**2)
+
+locationDistances :: Facilities -> Clients -> Distances
+locationDistances fs cs =
+  let n = length fs
+      m = length cs
+  in array ((0,0), (n-1, m-1)) [ ((i, j), Distance i j d 0.0)
+                               | Facility i _ _ _ fPos <- fs
+                               , Client j _ cPos <- cs
+                               , let d = distance fPos cPos]
+
 
 showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f") $ map selector list)
 
