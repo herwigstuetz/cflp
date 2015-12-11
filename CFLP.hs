@@ -124,7 +124,8 @@ locationDistances fs cs =
                                , let d = distance fPos cPos]
 
 
-showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f") $ map selector list)
+showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f")
+                                             $ map selector list)
 
 showFacilities fs = (unwords $ map (show . facilityId) fs) ++ "\n" ++
                     (unwords $ map (show . f) fs) ++ "\n" ++
@@ -145,7 +146,8 @@ showClientsSol cs = (unwords $ map (show . clientId) cs) ++ "\n"
 showDistances ds = unlines [unwords $ line i | i <- [0..n]] ++ "\n"
   where (n,m) = snd . bounds $ ds
         line i = [show . c $ ds!(i,j) | j <- [0..m]]
-showDistancesSol ds = unlines [unwords [show . x $ ds!(i,j) | j <- [0..m]] | i <- [0..n]] ++ "\n"
+showDistancesSol ds = unlines [unwords [show . x $ ds!(i,j) | j <- [0..m]]
+                              | i <- [0..n]] ++ "\n"
   where (n,m) = snd . bounds $ ds
 
 
@@ -156,7 +158,8 @@ showCFLP cflp = (show . length . facilities $ cflp) ++ "\n" ++
                 (showDistances . distances $ cflp) ++ "\n"
 
 showOpenFacilities cflp = (show . length . facilities $ cflp) ++ "\n" ++
-                          (showFacilitiesSol $ filter (\f -> y f > 0) (facilities cflp)) ++ "\n"
+                          (showFacilitiesSol
+                           $ filter (\f -> y f > 0) (facilities cflp)) ++ "\n"
 
 showCFLPSolution cflp = (show . length . facilities $ cflp) ++ "\n" ++
                         (showFacilitiesSol . facilities $ cflp) ++ "\n" ++
