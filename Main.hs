@@ -282,9 +282,10 @@ randomEvenDistCFLP n m =
      cs <- randomClients m (0.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      return $ CFLP fs cs (locationDistances fs cs)
 
+-- Good for solutions where opened facilities are not necessarily the closest ones
 randomEvenDist2CFLP :: Int -> Int -> IO CFLP
 randomEvenDist2CFLP n m =
-  do fs <- randomFacilities n (0.0, 100.0) (0.0, 200.0) (Position 0.0 0.0, Position 100.0 100.0)
+  do fs <- randomFacilities n (0.0, 100000.0) (0.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      cs <- randomClients m (50.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      return $ CFLP fs cs (locationDistances fs cs)
 
