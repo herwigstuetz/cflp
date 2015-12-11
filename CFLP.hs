@@ -301,13 +301,7 @@ cflpFileWithDistances = do
   return $ CFLP facilities clients (array ((0,0),(n-1,m-1)) cijs')
 
 cflpFile :: Stream s m Char => ParsecT s u m CFLP
-cflpFile = do
-  cflpType <- string "withPositions" <|> string "withDistances"
-  newline
-
-  case cflpType of "withPositions" -> cflpFileWithPositions
-                   "withDistances" -> cflpFileWithPositions
-                   _ -> fail "Illegal format"
+cflpFile = cflpFileWithPositions
 
 instance Show CFLP where
   show = showCFLP
