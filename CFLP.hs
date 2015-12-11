@@ -24,8 +24,9 @@ import Text.Parsec
 import           CPLEX
 import           MIP
 
-data Position = Position Double Double
-                deriving (Show, Eq)
+data Position = Position { posX :: Double
+                         , posY :: Double
+                         } deriving (Show, Eq)
 
 
 xRange :: (Position, Position) -> (Double, Double)
@@ -127,13 +128,17 @@ showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f") $ map
 
 showFacilities fs = (unwords $ map (show . facilityId) fs) ++ "\n" ++
                     (unwords $ map (show . f) fs) ++ "\n" ++
-                    (unwords $ map (show . u) fs) ++ "\n"
+                    (unwords $ map (show . u) fs) ++ "\n" ++
+                    (unwords $ map (show . posX . facilityPos) fs) ++ "\n" ++
+                    (unwords $ map (show . posY . facilityPos) fs) ++ "\n"
 
 showFacilitiesSol fs = (unwords $ map (show . facilityId) fs) ++ "\n" ++
                        (unwords $ map (show . y) fs) ++ "\n"
 
 showClients cs = (unwords $ map (show . clientId) cs) ++ "\n" ++
-                 (unwords $ map (show . d) cs) ++ "\n"
+                 (unwords $ map (show . d) cs) ++ "\n" ++
+                 (unwords $ map (show . posX . clientPos) cs) ++ "\n" ++
+                 (unwords $ map (show . posY . clientPos) cs) ++ "\n"
 
 showClientsSol cs = (unwords $ map (show . clientId) cs) ++ "\n"
 
