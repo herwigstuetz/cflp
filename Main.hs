@@ -266,7 +266,8 @@ randomDistances n m range =
      h <- newStdGen
      let f = zip [0,1..] $ take n $ uncurry zip $ splitAt n (randomRs range g)
      let c = zip [0,1..] $ take m $ uncurry zip $ splitAt m (randomRs range h)
-     return $ array ((0,0),(n-1,m-1)) [ ((i, j), Distance i j (sqrt ((cx-fx)**2 + (cy-fy)**2)) 0.0)
+     let dist cx fx cy fy = sqrt ((cx-fx)**2 + (cy-fy)**2)
+     return $ array ((0,0),(n-1,m-1)) [ ((i, j), Distance i j (dist cx fx cy fy) 0.0)
                                       | (i, (fx,fy)) <- f
                                       , (j, (cx,cy)) <- c]
 
