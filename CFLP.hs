@@ -10,7 +10,7 @@ import qualified Control.Monad.State as State
 
 import           Data.Array
 import           Data.Function
-import           Data.List                     (find, group, sort, sortBy, (\\))
+import           Data.List                     (find, group, sort, sortBy, (\\), zipWith5, zipWith4)
 import           Data.Tuple
 import           Text.Printf
 
@@ -228,8 +228,44 @@ double = fmap rd $ integer <++> decimal <++> exponent
 doubleList :: (Stream s m Char) => ParsecT s u m [Double]
 doubleList = (double `sepBy` char ' ') <* newline
 
-cflpFile :: (Stream s m Char) => ParsecT s u m CFLP
-cflpFile = do
+cflpFileWithPositions :: (Stream s m Char) => ParsecT s u m CFLP
+cflpFileWithPositions = do
+  -- number of facilities
+  n <- fromIntegral <$> integer
+  newline
+
+  fIds <- integerList
+  fs <- doubleList
+  us <- doubleList
+  fXs <- doubleList
+  fYs <- doubleList
+  newline
+
+  -- number of clients
+  m <- fromIntegral <$> integer
+  newline
+
+  cIds <- integerList
+  ds <- doubleList
+  cXs <- doubleList
+  cYs <- doubleList
+  newline
+
+  -- distances
+  cijs <- replicateM n doubleList
+
+  let cijs' = concat $ zipWith (\i ci -> zipWith (\j cij -> ((i, j), Distance i j cij 0.0)) [0..] ci) [0..] cijs
+
+  let facilityPos = zipWith Position fXs fYs
+      clientPos   = zipWith Position cXs cYs
+
+      facilities  = zipWith5 Facility [0,1..] fs us [0.0,0.0..] facilityPos
+      clients     = zipWith3 Client [0,1..] ds clientPos
+      distances   = locationDistances facilities clients
+  return $ CFLP facilities clients distances
+
+cflpFileWithDistances :: (Stream s m Char) => ParsecT s u m CFLP
+cflpFileWithDistances = do
   -- number of facilities
   n <- fromIntegral <$> integer
   newline
@@ -254,8 +290,16 @@ cflpFile = do
 
   let facilities = createFacilitiesFromList $ zip fs us
       clients    = createClientsFromList ds
---      Just distances  = createDistanceFromList facilities clients cijs'
   return $ CFLP facilities clients (array ((0,0),(n-1,m-1)) cijs')
+
+cflpFile :: Stream s m Char => ParsecT s u m CFLP
+cflpFile = do
+  cflpType <- string "withPositions" <|> string "withDistances"
+  newline
+
+  case cflpType of "withPositions" -> cflpFileWithPositions
+                   "withDistances" -> cflpFileWithPositions
+                   _ -> fail "Illegal format"
 
 instance Show CFLP where
   show = showCFLP
