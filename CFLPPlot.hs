@@ -6,8 +6,11 @@ import Data.Array
 import Data.Functor
 import Data.Traversable
 
-import Graphics.Rendering.Chart.Easy
+--import Graphics.Rendering.Chart.Backend.Diagrams
 import Graphics.Rendering.Chart.Backend.Cairo
+import Graphics.Rendering.Chart.Easy
+
+normalize xs = map (\x -> x / (maximum xs)) xs
 
 -- Plotting of CFLP
 plotCFLP :: CFLP -> String -> IO ()
@@ -25,28 +28,30 @@ plotCFLP cflp name = do
 
     -- so we set the max radius to the same value relative to the
     -- maximum value of each plot. then the circles of all plots are
-    -- comparable.
+    -- comparable. the sqrt'ing is necessary due to the internals
+    -- of area_spots.
 
     -- we want the largest radius of a facility to be 20
 
     let facilitySpots = spotDataFromFacilities $ facilities cflp
-        maxFacilityRadius = maximum $ map (\(_, _, x) -> x) facilitySpots
-
+        facilityRadii = map (\(_, _, x) -> x) facilitySpots
+        maxFacilityRadius = maximum facilityRadii
     plot $ liftEC $ do
       area_spots_title .= "facilities"
       area_spots_fillcolour .= blue
-      area_spots_max_radius .= maxFacilityRadius / maxFacilityRadius * 20.0
+      area_spots_max_radius .= sqrt (maxFacilityRadius / maxFacilityRadius) * 20.0
       area_spots_values .= facilitySpots
 
     let openFacilitySpots = spotDataFromFacilities
                             $ filter (\i -> y i == 1.0)
                             $ facilities cflp
-        maxOpenFacilityRadius = maximum $ map (\(_, _, x) -> x) openFacilitySpots
+        openFacilityRadii = map (\(_, _, x) -> x) openFacilitySpots
+        maxOpenFacilityRadius = maximum openFacilityRadii
     plot $ liftEC $ do
       area_spots_title .= "open facilities"
       area_spots_fillcolour .= blue
       area_spots_opacity .= 1.0
-      area_spots_max_radius .= maxOpenFacilityRadius / maxFacilityRadius * 20.0
+      area_spots_max_radius .= sqrt (maxOpenFacilityRadius / maxFacilityRadius) * 20.0
       area_spots_values .= openFacilitySpots
 
     let clientSpots = spotDataFromClients $ clients cflp
@@ -54,7 +59,7 @@ plotCFLP cflp name = do
     plot $ liftEC $ do
       area_spots_title .= "clients"
       area_spots_fillcolour .= green
-      area_spots_max_radius .= maxClientRadius / maxFacilityRadius * 20.0
+      area_spots_max_radius .= sqrt (maxClientRadius / maxFacilityRadius) * 20.0
       area_spots_values .= clientSpots
 
     let fs  = facilities cflp
