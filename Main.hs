@@ -336,7 +336,7 @@ fromCpxSolution cflp sol = cflp { facilities = openFacilities (facilities cflp) 
                                 , distances = satisfyDemand cflp xs
                                 }
   where n = length $ facilities cflp
-        ys = take n $ VS.toList (solX (traceMsgId "sol " sol))
+        ys = take n $ VS.toList (solX sol)
         xs = drop n $ VS.toList (solX sol)
 
 getBudget :: CFLP -> CpxSolution -> [Double]
@@ -354,9 +354,9 @@ inc = (+) 1
 satisfyDemand :: CFLP -> [Double] -> Distances
 satisfyDemand mcf xs = ds // (map (\ ((i, j), Distance i' j' c x)
                                   -> ((i, j), Distance i' j' c (xs' V.! (mcfXIdx n m (Map.findWithDefault 0 i fIds') j))))
-                              (traceMsgId "filt: " $ [ ((i,j), ds!(i,j)) | i <- fIds, j <- cIds ])) --((filter (\((i, j), _) -> i `elem` fIds)) (assocs ds))))
+                              [ ((i,j), ds!(i,j)) | i <- fIds, j <- cIds ])
   where ds = distances mcf
-        fIds = traceMsgId "fids: " $ map facilityId $ facilities mcf
+        fIds = map facilityId $ facilities mcf
         cIds = map clientId $ clients mcf
         fIds' = Map.fromList $ zip fIds [0..]
         n = length $ facilities mcf --inc . fst . snd $ bounds ds
@@ -462,8 +462,8 @@ getPossibleCenters cflp currentClusters = do
 
 -- While there are possible center, form cluster around the center
 c1 :: CFLP -> CpxSolution -> [Cluster] -> [ClientId] -> [Cluster]
-c1 cflp sol c [] = traceMsgId "c1 []: " c
-c1 cflp sol c s  = (traceMsgId "c1   : " $ formCluster c cflp s (getBudget cflp sol)) : c
+c1 cflp sol c [] = c
+c1 cflp sol c s  = formCluster c cflp s (getBudget cflp sol) : c
 
 
 -- Step C2
