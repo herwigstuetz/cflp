@@ -43,7 +43,7 @@ plotCFLP cflp name = do
       area_spots_values .= facilitySpots
 
     let openFacilitySpots = spotDataFromFacilities
-                            $ filter (\i -> y i == 1.0)
+                            $ filter (\i -> y i > 0.9) -- use epsilon due to numerical errors
                             $ facilities cflp
         openFacilityRadii = map (\(_, _, x) -> x) openFacilitySpots
         maxOpenFacilityRadius = maximum openFacilityRadii
