@@ -10,11 +10,13 @@ import           Data.Function
 import           Data.List                 (find, group, intercalate, maximumBy,
                                             minimumBy, nub, sort, sortBy,
                                             splitAt, zipWith4, zipWith5, (\\))
-import qualified Data.Map.Strict           as Map
+import qualified Data.Map.Strict as Map
 import           Data.Maybe
-import qualified Data.Set                  as Set
-import qualified Data.Vector               as V
-import qualified Data.Vector.Storable      as VS
+import qualified Data.Set as Set
+import           Data.Time.Clock
+import           Data.Time.Format
+import qualified Data.Vector as V
+import qualified Data.Vector.Storable as VS
 import           Text.Parsec.Prim
 
 import           GHC.IO.Handle
@@ -25,9 +27,10 @@ import           Text.Printf
 import           Foreign.C
 import           System.CPUTime
 import           System.Environment
+import           System.FilePath.Posix
 
 import           System.Log.Formatter
-import           System.Log.Handler        (close, setFormatter)
+import           System.Log.Handler (close, setFormatter)
 import           System.Log.Handler.Simple
 import           System.Log.Logger
 
@@ -165,6 +168,35 @@ benchCFLP ("bench" : testCase : n : m : k : r : s : _) = do
 benchCFLP _ = do usage
                  return []
 
+iso8601 :: UTCTime -> String
+iso8601 = formatTime defaultTimeLocale "%FT%T%QZ"
+
+genData ("gen-data" : n : m : _) = do
+  let n' = read n :: Int
+      m' = read m :: Int
+  cflp <- getFeasibleRandomCFLP n' m'
+  ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
+  ((approxObj, approxSol), approxTime) <- bench'$ solApprox cflp
+
+  currentTime <- getCurrentTime
+  let dirName = iso8601 currentTime
+
+  createDirectory dirName
+  writeFile (dirName </> "problem.cflp") $ show cflp
+  writeFile (dirName </> "exact.sol") $ showCFLPSolution exactSol
+  writeFile (dirName </> "approx.sol") $ showCFLPSolution approxSol
+  writeFile (dirName </> "stat.txt")
+    $ printf ("exact: %.15f, approx: %.15f, ratio: %.15f, "
+              ++ "exactTime: %.15f, approxTime: %.15f\n")
+        exactObj approxObj (approxObj/exactObj) exactTime approxTime
+
+  plotCFLP cflp $ (dirName </> "problem.png")
+  plotCFLP exactSol $ (dirName </> "exact.png")
+  plotCFLP approxSol $ (dirName </> "approx.png")
+
+  return ()
+genData _ = usage
+
 bench' :: IO a -> IO (a, Double)
 bench' action = do
   start <- getCPUTime
@@ -212,6 +244,7 @@ main = do
     ("read"      : _) -> readCFLP args
     ("read-mip"  : _) -> readMip args
     ("run"       : _) -> runCFLP args
+    ("gen-data"  : _) -> genData args
     ("bench"     : _) -> void $ benchCFLP args
     ("criterion" : _) -> criterionBench
     _ -> usage
