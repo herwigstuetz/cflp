@@ -156,7 +156,7 @@ benchCFLP ("bench" : testCase : n : m : k : r : s : _) = do
             putStrLn (printf "%d,%d,%d,%.8f,%.8f,%.8f"
                       r n m
                       exactTime approxTime (approxObj/exactObj))
-            when (approxObj/exactObj < 1.0) $ do
+            when (abs (approxObj/exactObj - 1.0) > 1.0**(-8)) $ do
               putStrLn "ERROR: Ratio < 1.0"
               putStrLn $ showCFLP'' cflp
               putStrLn $ showCFLPSolution exactSol
