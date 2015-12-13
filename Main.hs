@@ -121,49 +121,56 @@ choosePoints n' k' = map round [1,n/k..n]
   where n = fromIntegral n'
         k = fromIntegral k'
 
-benchCFLP :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
-benchCFLP ("bench" : testCase : n : m : k : r : s : _) = do
-  -- Update logger for no output
-  updateGlobalLogger "cflp" (setLevel ERROR)
-
-  let r' = read r :: Int
-      s' = read s :: Int
-      n' = read n :: Int
-      m' = read m :: Int
-      k' = read k :: Int
-
-  putStrLn "id,n,m,exactTime,approxTime,ratio"
-
+benchCFLP' :: String -> Int -> Int -> Int -> Int -> Int
+           -> IO [(Int, Int, Int, Double, Double, Double)]
+benchCFLP' testCase n m k r s = do
   liftM (concat . concat) $
-    forM [(i,j) | i <- choosePoints n' k', j <- choosePoints m' k', j <= i] $ \(n, m) -> do
+    forM [(i,j) | i <- choosePoints n k, j <- choosePoints m k, j <= i] $ \(n, m) -> do
       -- repeat for better guessing the ratio
-      forM [1..r'] $ \r -> do
+      forM [1..r] $ \r -> do
 
         cflp <- case testCase of
           "uniform1" -> randomEvenDistCFLP n m
+          "uniform2" -> randomEvenDist2CFLP n m
           _ -> randomEvenDistCFLP n m
 
         if (isFeasible cflp) then
           -- repeat for exact time measurements
-          forM [1..s'] $ \s -> do
+          forM [1..s] $ \s -> do
             -- Exact
             ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
 
             -- Approx
             ((approxObj, approxSol), approxTime) <- bench' $ solApprox cflp
 
-            -- n, m, exactTime, approxTime, ratio
-            putStrLn (printf "%d,%d,%d,%.8f,%.8f,%.8f"
-                      r n m
-                      exactTime approxTime (approxObj/exactObj))
-            when (abs (approxObj/exactObj - 1.0) > 1.0**(-8)) $ do
-              putStrLn "ERROR: Ratio < 1.0"
-              putStrLn $ showCFLP'' cflp
-              putStrLn $ showCFLPSolution exactSol
-              putStrLn $ showCFLPSolution approxSol
-
             return (r, n, m, exactTime, approxTime, (approxObj/exactObj))
           else return []
+
+
+benchCFLP :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
+benchCFLP ("bench" : testCase : n' : m' : k' : r' : s' : _) = do
+  -- Update logger for no output
+  updateGlobalLogger "cflp" (setLevel ERROR)
+
+  let r = read r' :: Int
+      s = read s' :: Int
+      n = read n' :: Int
+      m = read m' :: Int
+      k = read k' :: Int
+
+  benchData <- benchCFLP' testCase n m k r s
+
+  -- print data
+  putStrLn "id,n,m,exactTime,approxTime,ratio"
+  forM_ benchData $ \(r, n, m, exactTime, approxTime, ratio) -> do
+    -- n, m, exactTime, approxTime, ratio
+    putStrLn (printf "%d,%d,%d,%.8f,%.8f,%.8f"
+              r n m
+              exactTime approxTime ratio)
+    when (abs (ratio - 1.0) > 1.0**(-8)) $ do
+      putStrLn "ERROR: Ratio < 1.0"
+
+  return benchData
 
 benchCFLP _ = do usage
                  return []
