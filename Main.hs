@@ -121,30 +121,29 @@ choosePoints n' k' = map round [1,n/k..n]
   where n = fromIntegral n'
         k = fromIntegral k'
 
-benchCFLP' :: String -> Int -> Int -> Int -> Int -> Int
-           -> IO [(Int, Int, Int, Double, Double, Double)]
-benchCFLP' testCase n m k r s = do
-  liftM (concat . concat) $
-    forM [(i,j) | i <- choosePoints n k, j <- choosePoints m k, j <= i] $ \(n, m) -> do
-      -- repeat for better guessing the ratio
-      forM [1..r] $ \r -> do
+--benchCFLP' :: String -> Int -> Int -> Int -> Int -> Int
+--           -> IO [(Int, Int, Int, Double, Double, Double)]
 
-        cflp <- case testCase of
-          "uniform1" -> randomEvenDistCFLP n m
-          "uniform2" -> randomEvenDist2CFLP n m
-          _ -> randomEvenDistCFLP n m
+benchCFLP' :: String -> [((Int, Int), Int)] -> IO [(Int, Int, Int, Double, Double, Double)]
+benchCFLP' testCase points = do
+  liftM concat $
+    forM (zip [1..] points) $ \(id, ((n,m), s)) -> do
+      cflp <- case testCase of
+        "uniform1" -> randomEvenDistCFLP n m
+        "uniform2" -> randomEvenDist2CFLP n m
+        _ -> randomEvenDistCFLP n m
 
-        if (isFeasible cflp) then
-          -- repeat for exact time measurements
-          forM [1..s] $ \s -> do
-            -- Exact
-            ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
+      if (isFeasible cflp) then
+        -- repeat for exact time measurements
+        forM [1..s] $ \s -> do
+          -- Exact
+          ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
 
-            -- Approx
-            ((approxObj, approxSol), approxTime) <- bench' $ solApprox cflp
+          -- Approx
+          ((approxObj, approxSol), approxTime) <- bench' $ solApprox cflp
 
-            return (r, n, m, exactTime, approxTime, (approxObj/exactObj))
-          else return []
+          return (id, n, m, exactTime, approxTime, (approxObj/exactObj))
+      else return []
 
 
 benchCFLP :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
@@ -158,7 +157,9 @@ benchCFLP ("bench" : testCase : n' : m' : k' : r' : s' : _) = do
       m = read m' :: Int
       k = read k' :: Int
 
-  benchData <- benchCFLP' testCase n m k r s
+--  let points = [((n,m),r) | i <- choosePoints n k, j <- choosePoints m k, j <= i]
+  let points = [((2*i, i), s) | i <- [10,20..n]]
+  benchData <- benchCFLP' testCase points
 
   -- print data
   putStrLn "id,n,m,exactTime,approxTime,ratio"
@@ -170,6 +171,7 @@ benchCFLP ("bench" : testCase : n' : m' : k' : r' : s' : _) = do
     when (abs (ratio - 1.0) > 1.0**(-8)) $ do
       putStrLn "ERROR: Ratio < 1.0"
 
+  plotBench benchData "bench.png"
   return benchData
 
 benchCFLP _ = do usage
