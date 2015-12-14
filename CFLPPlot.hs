@@ -3,7 +3,10 @@ module CFLPPlot where
 import CFLP
 
 import Data.Array
+import Data.Function (on)
 import Data.Functor
+import Data.List (groupBy, sortBy)
+import Data.Ord (comparing)
 import Data.Traversable
 
 --import Graphics.Rendering.Chart.Backend.Diagrams
@@ -85,3 +88,40 @@ spotDataFromFacilities fs = map (\(Facility _ _ u _ (Position xPos yPos)) -> (xP
 
 spotDataFromClients :: Clients -> [(Double, Double, Double)]
 spotDataFromClients cs = map (\(Client _ d (Position xPos yPos)) -> (xPos, yPos, d)) cs
+
+
+plotBench :: [(Int, Int, Int, Double, Double, Double)] -> String -> IO ()
+plotBench benchData name = do
+ toFile def name $ do
+   layout_title .= "Benchmark"
+   layout_background .= solidFillStyle (opaque white)
+   layout_foreground .= (opaque black)
+   layout_left_axis_visibility . axis_show_ticks .= False
+
+   plot $ points "exact" $ promoteN $ aggregateWithMean (map exactTime benchData)
+   plot $ points "approx" $ promoteN $ aggregateWithMean (map approxTime benchData)
+
+exactTime :: (Int, Int, Int, Double, Double, Double) -> ((Int, Int), Double)
+exactTime  (_, n, m, _, t, _) = ((n, m), t)
+
+approxTime :: (Int, Int, Int, Double, Double, Double) -> ((Int, Int), Double)
+approxTime (_, n, m, t, _, _) = ((n, m), t)
+
+
+mean :: [Double] -> Double
+mean list = (sum list) / (fromIntegral $ length list)
+
+aggregateWithMean :: Ord t => [(t, Double)] -> [(t, Double)]
+aggregateWithMean list = map meanOnSnd $ map factorOut $ groupWith fst list
+
+promoteN :: [((Int, Int), Double)] -> [(Double, Double)]
+promoteN list = map (\ ((n,m), y) -> (fromIntegral n, y)) list
+
+meanOnSnd :: (t, [Double]) -> (t, Double)
+meanOnSnd (a, xs) = (a, mean xs)
+
+factorOut :: [(a, b)] -> (a, [b])
+factorOut xs = (fst (xs !! 0), map snd xs)
+
+groupWith :: Ord a => (b -> a) -> [b] -> [[b]]
+groupWith f list = groupBy ((==) `on` f) $ sortBy (comparing f) list
