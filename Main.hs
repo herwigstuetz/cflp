@@ -332,7 +332,7 @@ randomEvenDist2CFLP n m =
      cs <- randomClients m (50.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      return $ CFLP fs cs (locationDistances fs cs)
 
-getFeasibleRandomCFLP n m = getFeasibleCFLP $ randomEvenDistCFLP n m
+getFeasibleRandomCFLP n m = getFeasibleCFLP $ randomEvenDist2CFLP n m
 
 
 openFacility :: Facility -> Double -> Facility
