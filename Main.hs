@@ -171,7 +171,7 @@ benchCFLP ("bench" : testCase : n' : m' : k' : r' : s' : _) = do
     when (abs (ratio - 1.0) > 1.0**(-8)) $ do
       putStrLn "ERROR: Ratio < 1.0"
 
-  plotBench benchData "bench.png"
+  writeFile "bench.csv" $ show benchData
   return benchData
 
 benchCFLP _ = do usage

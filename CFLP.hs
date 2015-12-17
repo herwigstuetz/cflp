@@ -272,6 +272,71 @@ cflpFileWithPositions = do
       distances   = locationDistances facilities clients
   return $ CFLP facilities clients distances
 
+solvedCflpFileWithPositions :: (Stream s m Char) => ParsecT s u m CFLP
+solvedCflpFileWithPositions = do
+  -- number of facilities
+  n <- fromIntegral <$> integer
+  newline
+
+  fIds <- integerList
+  fs <- doubleList
+  us <- doubleList
+  fXs <- doubleList
+  fYs <- doubleList
+  newline
+
+  -- number of clients
+  m <- fromIntegral <$> integer
+  newline
+
+  cIds <- integerList
+  ds <- doubleList
+  cXs <- doubleList
+  cYs <- doubleList
+  newline
+
+  -- distances
+  cijs <- replicateM n doubleList
+  newline
+
+  -- solution
+  n' <- fromIntegral <$> integer
+  newline
+
+  fIds' <- integerList
+  ys <- doubleList
+  newline
+
+  m' <- fromIntegral <$> integer
+  newline
+
+--  when (n /= n' || m /= m') $
+--    newErrorUnknown 0
+
+  cIds' <- integerList
+  newline
+
+  -- distances
+  cijs <- replicateM n doubleList
+
+  let xijs' = concat $ zipWith (\i ci -> zipWith (\j cij -> ((i, j), Distance i j cij 0.0)) [0..] ci) [0..] cijs
+
+  let facilities = createFacilitiesFromList $ zip fs us
+      clients    = createClientsFromList ds
+  return $ CFLP facilities clients (array ((0,0),(n-1,m-1)) cijs')
+
+
+
+  let cijs' = concat $ zipWith (\i ci -> zipWith (\j cij -> ((i, j), Distance i j cij 0.0)) [0..] ci) [0..] cijs
+
+  let facilityPos = zipWith Position fXs fYs
+      clientPos   = zipWith Position cXs cYs
+
+      facilities  = zipWith5 Facility [0,1..] fs us [0.0,0.0..] facilityPos
+      clients     = zipWith3 Client [0,1..] ds clientPos
+      distances   = locationDistances facilities clients
+  return $ CFLP facilities clients distances
+
 cflpFileWithDistances :: (Stream s m Char) => ParsecT s u m CFLP
 cflpFileWithDistances = do
   -- number of facilities
