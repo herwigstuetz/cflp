@@ -123,6 +123,18 @@ locationDistances fs cs =
                                , Client j _ cPos <- cs
                                , let d = distance fPos cPos]
 
+toIndexed :: [[Double]] -> [((Int, Int), Double)]
+toIndexed rows = [ ((i, j), col) | (i, row) <- zip [0,1..] rows
+                                 , (j, col) <- zip [0,1..] row]
+
+sendFlowDistances :: Distances -> [[Double]] -> Distances
+sendFlowDistances ds rows = listArray (bounds ds) $ zipWith sendFlow distElems flowElems
+  where distElems = elems ds
+        flowElems = elems $ array (bounds ds) (toIndexed rows)
+
+sendFlow :: Distance -> Double -> Distance
+sendFlow d x = d { x = x }
+
 
 showFormat prefix selector list = prefix ++ (unwords $ map (printf "%.2f")
                                              $ map selector list)
@@ -317,25 +329,17 @@ solvedCflpFileWithPositions = do
   newline
 
   -- distances
-  cijs <- replicateM n doubleList
-
-  let xijs' = concat $ zipWith (\i ci -> zipWith (\j cij -> ((i, j), Distance i j cij 0.0)) [0..] ci) [0..] cijs
-
-  let facilities = createFacilitiesFromList $ zip fs us
-      clients    = createClientsFromList ds
-  return $ CFLP facilities clients (array ((0,0),(n-1,m-1)) cijs')
-
-
-
-  let cijs' = concat $ zipWith (\i ci -> zipWith (\j cij -> ((i, j), Distance i j cij 0.0)) [0..] ci) [0..] cijs
+  xijs <- replicateM n doubleList
 
   let facilityPos = zipWith Position fXs fYs
       clientPos   = zipWith Position cXs cYs
 
-      facilities  = zipWith5 Facility [0,1..] fs us [0.0,0.0..] facilityPos
+      facilities  = zipWith5 Facility [0,1..] fs us ys facilityPos
       clients     = zipWith3 Client [0,1..] ds clientPos
-      distances   = locationDistances facilities clients
-  return $ CFLP facilities clients distances
+
+      distances  = locationDistances facilities clients
+      distances' = sendFlowDistances distances xijs
+  return $ CFLP facilities clients distances'
 
 cflpFileWithDistances :: (Stream s m Char) => ParsecT s u m CFLP
 cflpFileWithDistances = do
