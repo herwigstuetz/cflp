@@ -280,7 +280,7 @@ main = do
     ("read-mip"  : _) -> readMip args
     ("run"       : _) -> runCFLP args
     ("gen-data"  : _) -> genData args
-    ("gen-bench" : _) -> genBench args
+    ("gen-bench" : _) -> void $ genBench args
     ("bench"     : _) -> void $ benchCFLP args
     ("criterion" : _) -> criterionBench
     _ -> usage
