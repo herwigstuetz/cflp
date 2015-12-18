@@ -156,8 +156,7 @@ benchCFLP ("bench" : testCase : n' : m' : k' : r' : s' : _) = do
       m = read m' :: Int
       k = read k' :: Int
 
---  let points = [((n,m),r) | i <- choosePoints n k, j <- choosePoints m k, j <= i]
-  let points = [((2*i, i), s) | i <- [10,20..n]]
+  let points = [((n,m),r) | i <- choosePoints n k, j <- choosePoints m k, j <= i]
   benchData <- benchCFLP' testCase points
 
   -- print data
@@ -204,6 +203,34 @@ genData ("gen-data" : n : m : _) = do
 
   return ()
 genData _ = usage
+
+genBench :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
+genBench ("gen-bench" : testCase : m' : k' : s' : _) = do
+  -- Update logger for no output
+  updateGlobalLogger "cflp" (setLevel ERROR)
+
+  let s = read s' :: Int
+      m = read m' :: Int
+      k = read k' :: Int
+
+  let points = [((2*i, i), s) | i <- [10,20..m]]
+  benchData <- benchCFLP' testCase points
+
+  -- print data
+  putStrLn "id,n,m,exactTime,approxTime,ratio"
+  forM_ benchData $ \(r, n, m, exactTime, approxTime, ratio) -> do
+    -- n, m, exactTime, approxTime, ratio
+    putStrLn (printf "%d,%d,%d,%.8f,%.8f,%.8f"
+              r n m
+              exactTime approxTime ratio)
+    when (abs (ratio - 1.0) > 1.0**(-8)) $ do
+      putStrLn "ERROR: Ratio < 1.0"
+
+  writeFile "bench.csv" $ show benchData
+  return benchData
+
+genBench _ = do usage
+                return []
 
 bench' :: IO a -> IO (a, Double)
 bench' action = do
@@ -253,6 +280,7 @@ main = do
     ("read-mip"  : _) -> readMip args
     ("run"       : _) -> runCFLP args
     ("gen-data"  : _) -> genData args
+    ("gen-bench" : _) -> genBench args
     ("bench"     : _) -> void $ benchCFLP args
     ("criterion" : _) -> criterionBench
     _ -> usage
