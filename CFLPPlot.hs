@@ -91,10 +91,10 @@ spotDataFromClients cs = map (\(Client _ d (Position xPos yPos)) -> (xPos, yPos,
 
 
 readBench :: String -> String -> IO ()
-readBench file name = do
-  fileContent <- readFile file
+readBench fileName plotName = do
+  fileContent <- readFile fileName
   let benchData = read fileContent
-  plotBench benchData name
+  plotBench benchData plotName
 
 plotBench :: [(Int, Int, Int, Double, Double, Double)] -> String -> IO ()
 plotBench benchData name = do
