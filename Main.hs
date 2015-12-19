@@ -215,8 +215,11 @@ genBench ("gen-bench" : testCase : maxDuration' : stepSize' : numReps' : _) = do
   let numReps = read numReps' :: Int
       stepSize = read stepSize' :: Int
       maxDuration = read maxDuration' :: Double
-
-  let points = [((2*i, i), numReps) | i <- [stepSize,2*stepSize..]]
+  -- numReps is the number of different test instances
+  -- the 1 in (2*i, i), 1 is how often each instance should be run
+  let points = concatMap
+                 (replicate numReps)
+                 [((2*i, i), 1) | i <- [stepSize,2*stepSize..]]
 
   let mipTime (_,_,_,t,_,_) = t
 --  untilM mipTime
