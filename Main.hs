@@ -64,15 +64,13 @@ catchOutput f = do
 usage :: IO ()
 usage = putStrLn "write n m filename|read filename|read-mip filename|run n m|bench n m"
 
-writeCFLP :: [String] -> IO ()
-writeCFLP ("write" : n : m : fileName : _) = do
-  let n' = read n :: Int
-      m' = read m :: Int
-  cflp <- getFeasibleRandomCFLP n' m'
+writeCFLP :: Int -> Int -> FilePath -> IO ()
+writeCFLP n m fileName = do
+  cflp <- getFeasibleRandomCFLP n m
   writeFile fileName (showCFLP'' cflp)
 
-readCFLP :: [String] -> IO ()
-readCFLP ("read" : fileName : _) = do
+readCFLP :: FilePath -> IO ()
+readCFLP fileName = do
   cflp <- readFile fileName
   let cflp' = parse cflpFile "cflp" cflp
   case cflp' of
@@ -84,10 +82,9 @@ readCFLP ("read" : fileName : _) = do
               putStrLn $ "Objective: " ++ show obj
               putStrLn $ showCFLPSolution cflp'''
               return ()
-readCFLP _ = usage
 
-readMip :: [String] -> IO ()
-readMip ("read-mip" : fileName : _) = do
+readMip :: FilePath -> IO ()
+readMip fileName = do
   cflp <- readFile fileName
   let cflp' = parse cflpFile "cflp" cflp
   case cflp' of
@@ -98,17 +95,13 @@ readMip ("read-mip" : fileName : _) = do
       else do (obj, sol) <- solExact cflp''
               putStrLn $ "Objective: " ++ show obj
               writeSol sol
-readMip _ = usage
 
-runCFLP :: [String] -> IO ()
-runCFLP ("run" : n : m : _) = do
-  let n' = read n :: Int
-      m' = read m :: Int
-  cflp <- getFeasibleRandomCFLP n' m'
+runCFLP :: Int -> Int -> IO ()
+runCFLP n m = do
+  cflp <- getFeasibleRandomCFLP n m
   (obj, cflp') <- solApprox cflp
 --  plotCFLP cflp' "solved.png"
   writeSol cflp'
-runCFLP _ = usage
 
 chooseLogPoints :: Int -> Int -> [Int]
 chooseLogPoints n' k' = nub [ round $ exp x | x <- [0,log n/k..log n]]
@@ -120,10 +113,8 @@ choosePoints n' k' = map round [1,n/k..n]
   where n = fromIntegral n'
         k = fromIntegral k'
 
---benchCFLP' :: String -> Int -> Int -> Int -> Int -> Int
---           -> IO [(Int, Int, Int, Double, Double, Double)]
-
-benchCFLP' :: String -> [((Int, Int), Int)] -> IO [(Int, Int, Int, Double, Double, Double)]
+benchCFLP' :: String -> [((Int, Int), Int)]
+           -> IO [(Int, Int, Int, Double, Double, Double)]
 benchCFLP' testCase points = do
   liftM concat $
     forM (zip [1..] points) $ \(id, ((n,m), s)) -> do
@@ -145,16 +136,11 @@ benchCFLP' testCase points = do
       else return []
 
 
-benchCFLP :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
-benchCFLP ("bench" : testCase : n' : m' : k' : r' : s' : _) = do
+benchCFLP :: String -> Int -> Int -> Int -> Int
+          -> IO [(Int, Int, Int, Double, Double, Double)]
+benchCFLP testCase n m k r = do
   -- Update logger for no output
   updateGlobalLogger "cflp" (setLevel ERROR)
-
-  let r = read r' :: Int
-      s = read s' :: Int
-      n = read n' :: Int
-      m = read m' :: Int
-      k = read k' :: Int
 
   let points = [((n,m),r) | i <- choosePoints n k, j <- choosePoints m k, j <= i]
   benchData <- benchCFLP' testCase points
@@ -172,16 +158,12 @@ benchCFLP ("bench" : testCase : n' : m' : k' : r' : s' : _) = do
   writeFile "bench.csv" $ show benchData
   return benchData
 
-benchCFLP _ = do usage
-                 return []
-
 iso8601 :: UTCTime -> String
 iso8601 = formatTime defaultTimeLocale "%FT%T%QZ"
 
-genData ("gen-data" : n : m : _) = do
-  let n' = read n :: Int
-      m' = read m :: Int
-  cflp <- getFeasibleRandomCFLP n' m'
+genData :: Int -> Int -> IO ()
+genData n m = do
+  cflp <- getFeasibleRandomCFLP n m
   ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
   ((approxObj, approxSol), approxTime) <- bench'$ solApprox cflp
 
@@ -202,19 +184,15 @@ genData ("gen-data" : n : m : _) = do
 --  plotCFLP approxSol $ (dirName </> "approx.png")
 
   return ()
-genData _ = usage
 
 mean :: [Double] -> Double
 mean list = (sum list) / (fromIntegral $ length list)
 
-genBench :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
-genBench ("gen-bench" : testCase : maxDuration' : stepSize' : numReps' : _) = do
+genBench :: String -> Double -> Int -> Int -> IO [(Int, Int, Int, Double, Double, Double)]
+genBench testCase maxDuration stepSize numReps = do
   -- Update logger for no output
   updateGlobalLogger "cflp" (setLevel ERROR)
 
-  let numReps = read numReps' :: Int
-      stepSize = read stepSize' :: Int
-      maxDuration = read maxDuration' :: Double
   -- numReps is the number of different test instances
   -- the 1 in (2*i, i), 1 is how often each instance should be run
   let points = concatMap
@@ -246,9 +224,6 @@ genBench ("gen-bench" : testCase : maxDuration' : stepSize' : numReps' : _) = do
 
   writeFile "bench.csv" $ show benchData
   return benchData
-
-genBench _ = do usage
-                return []
 
 bench' :: IO a -> IO (a, Double)
 bench' action = do
@@ -293,13 +268,33 @@ main = do
   updateGlobalLogger "cflp" (setLevel INFO)
   args <- getArgs
   case args of
-    ("write"     : _) -> writeCFLP args
-    ("read"      : _) -> readCFLP args
-    ("read-mip"  : _) -> readMip args
-    ("run"       : _) -> runCFLP args
-    ("gen-data"  : _) -> genData args
-    ("gen-bench" : _) -> void $ genBench args
-    ("bench"     : _) -> void $ benchCFLP args
+    ("write"     : n' : m' : fileName : [])
+      -> do let n = read n'
+                m = read m'
+            writeCFLP n m fileName
+    ("read"      : fileName : [])
+      -> readCFLP fileName
+    ("read-mip"  : fileName : [])
+      -> readMip fileName
+    ("run"       : n' : m' : [])
+      -> do let n = read n'
+                m = read m'
+            runCFLP n m
+    ("gen-data"  : n' : m' : [])
+      -> do let n = read n'
+                m = read m'
+            genData n m
+    ("gen-bench" : testCase : maxDuration' : stepSize' : numReps' : [])
+      -> do let maxDuration = read maxDuration'
+                stepSize = read stepSize'
+                numReps = read numReps'
+            void $ genBench testCase maxDuration stepSize numReps
+    ("bench"     : testCase : n' : m' : k' : r' : [])
+      -> do let n = read n'
+                m = read m'
+                k = read k'
+                r = read r'
+            void $ benchCFLP testCase n m k r
     ("criterion" : _) -> criterionBench
     _ -> usage
 
