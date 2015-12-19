@@ -104,8 +104,8 @@ plotBench benchData name = do
    layout_foreground .= (opaque black)
    layout_left_axis_visibility . axis_show_ticks .= False
 
-   plot $ points "exact" $ promoteN $ aggregateWithMean (map exactTime benchData)
-   plot $ points "approx" $ promoteN $ aggregateWithMean (map approxTime benchData)
+   plot $ line "exact" $ [promoteN $ aggregateWithMean (map exactTime benchData)]
+   plot $ line "approx" $ [promoteN $ aggregateWithMean (map approxTime benchData)]
 
 exactTime :: (Int, Int, Int, Double, Double, Double) -> ((Int, Int), Double)
 exactTime  (_, n, m, _, t, _) = ((n, m), t)
