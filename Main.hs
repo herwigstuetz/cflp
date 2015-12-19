@@ -201,13 +201,13 @@ genBench testCase maxDuration stepSize numReps = do
 --  untilM mipTime
   let loop tests acc = do
         print $ head tests
-        r <- benchCFLP' testCase [head tests]
+        r <- benchCFLP' testCase $ take numReps tests
         print r
         case r of (r' : _) ->
                     if mean (map mipTime r) < maxDuration
                     then loop (tail tests) (acc ++ r)
                     else return $ acc ++ r -- do not throw away tes points
-                  [] -> loop (tail tests) acc -- cut out infeasibles
+                  [] -> loop (drop numReps tests) acc -- cut out infeasibles
   benchData <- loop points []
 
   -- print data
