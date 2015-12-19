@@ -224,12 +224,12 @@ genBench ("gen-bench" : testCase : maxDuration' : stepSize' : numReps' : _) = do
         print $ head tests
         r <- benchCFLP' testCase [head tests]
         print r
-        case r of [r'] ->
+        case r of (r' : _) ->
                     if mean (map mipTime r) < maxDuration
-                    then loop (tail tests) (r : acc)
-                    else return $ reverse $ r : acc -- do not throw away tes points
+                    then loop (tail tests) (acc ++ r)
+                    else return $ acc ++ r -- do not throw away tes points
                   [] -> loop (tail tests) acc -- cut out infeasibles
-  benchData <- liftM concat $ loop points []
+  benchData <- loop points []
 
   -- print data
   putStrLn "id,n,m,exactTime,approxTime,ratio"
