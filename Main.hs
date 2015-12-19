@@ -45,8 +45,6 @@ import           AP
 import           CFLP
 import           MIP
 
-import           Criterion.Main
-
 catchOutput :: IO a -> IO (a, String)
 catchOutput f = do
   tmpd <- getTemporaryDirectory
@@ -233,26 +231,6 @@ bench' action = do
   let diff = fromIntegral $ end - start
   return (v, diff/10^12)
 
-
-criterionBench = defaultMain [
-    bgroup "solExact n = m" $ map (\m  -> bench (show m)  $ nfIO $
-                                          do cflp <- getFeasibleRandomCFLP m m
-                                             (exactObj, exactSol) <- solExact cflp
-                                             return ()) [5,10,50,100]
-  , bgroup "solApprox n = m " $ map (\m -> bench (show m)  $ nfIO $
-                                           do cflp <- getFeasibleRandomCFLP m m
-                                              (approxObj, approxSol) <- solApprox cflp
-                                              return ()) [5,10,50,100]
-  , bgroup "solExact n = 2m" $ map (\m -> bench (show m)  $ nfIO $
-                                          do cflp <- getFeasibleRandomCFLP (2*m) m
-                                             (exactObj, exactSol) <- solExact cflp
-                                             return ()) [5,10,50,100]
-  , bgroup "solApprox n = 2m " $ map (\m -> bench (show m)  $ nfIO $
-                                             do cflp <- getFeasibleRandomCFLP (2*m) m
-                                                (approxObj, approxSol) <- solApprox cflp
-                                                return ()) [5,10,50,100]
-  ]
-
 writeSol :: CFLP -> IO ()
 writeSol cflp = do
   putStrLn "Solution:"
@@ -295,7 +273,6 @@ main = do
                 k = read k'
                 r = read r'
             void $ benchCFLP testCase n m k r
-    ("criterion" : _) -> criterionBench
     _ -> usage
 
   -- Close logger
