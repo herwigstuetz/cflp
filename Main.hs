@@ -204,17 +204,32 @@ genData ("gen-data" : n : m : _) = do
   return ()
 genData _ = usage
 
+mean :: [Double] -> Double
+mean list = (sum list) / (fromIntegral $ length list)
+
 genBench :: [String] -> IO [(Int, Int, Int, Double, Double, Double)]
-genBench ("gen-bench" : testCase : m' : k' : s' : _) = do
+genBench ("gen-bench" : testCase : maxDuration' : stepSize' : numReps' : _) = do
   -- Update logger for no output
   updateGlobalLogger "cflp" (setLevel ERROR)
 
-  let s = read s' :: Int
-      m = read m' :: Int
-      k = read k' :: Int
+  let numReps = read numReps' :: Int
+      stepSize = read stepSize' :: Int
+      maxDuration = read maxDuration' :: Double
 
-  let points = [((2*i, i), s) | i <- [10,20..m]]
-  benchData <- benchCFLP' testCase points
+  let points = [((2*i, i), numReps) | i <- [stepSize,2*stepSize..]]
+
+  let mipTime (_,_,_,t,_,_) = t
+--  untilM mipTime
+  let loop tests acc = do
+        print $ head tests
+        r <- benchCFLP' testCase [head tests]
+        print r
+        case r of [r'] ->
+                    if mean (map mipTime r) < maxDuration
+                    then loop (tail tests) (r : acc)
+                    else return $ reverse $ r : acc -- do not throw away tes points
+                  [] -> loop (tail tests) acc -- cut out infeasibles
+  benchData <- liftM concat $ loop points []
 
   -- print data
   putStrLn "id,n,m,exactTime,approxTime,ratio"
