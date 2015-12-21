@@ -186,8 +186,8 @@ genData n m = do
 mean :: [Double] -> Double
 mean list = (sum list) / (fromIntegral $ length list)
 
-genBench :: String -> Double -> Int -> Int -> IO [(Int, Int, Int, Double, Double, Double)]
-genBench testCase maxDuration stepSize numReps = do
+genBench :: FilePath -> String -> Double -> Int -> Int -> IO [(Int, Int, Int, Double, Double, Double)]
+genBench fileName testCase maxDuration stepSize numReps = do
   -- Update logger for no output
   updateGlobalLogger "cflp" (setLevel ERROR)
 
@@ -220,7 +220,7 @@ genBench testCase maxDuration stepSize numReps = do
     when (abs (ratio - 1.0) > 1.0**(-8)) $ do
       putStrLn "ERROR: Ratio < 1.0"
 
-  writeFile "bench.csv" $ show benchData
+  writeFile fileName $ show benchData
   return benchData
 
 bench' :: IO a -> IO (a, Double)
@@ -262,11 +262,11 @@ main = do
       -> do let n = read n'
                 m = read m'
             genData n m
-    ("gen-bench" : testCase : maxDuration' : stepSize' : numReps' : [])
+    ("gen-bench" : fileName : testCase : maxDuration' : stepSize' : numReps' : [])
       -> do let maxDuration = read maxDuration'
                 stepSize = read stepSize'
                 numReps = read numReps'
-            void $ genBench testCase maxDuration stepSize numReps
+            void $ genBench fileName testCase maxDuration stepSize numReps
     ("bench"     : testCase : n' : m' : k' : r' : [])
       -> do let n = read n'
                 m = read m'
