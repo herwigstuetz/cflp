@@ -108,10 +108,10 @@ plotBench benchData name = do
    plot $ line "approx" $ [promoteN $ aggregateWithMean (map approxTime benchData)]
 
 exactTime :: (Int, Int, Int, Double, Double, Double) -> ((Int, Int), Double)
-exactTime  (_, n, m, _, t, _) = ((n, m), t)
+exactTime  (_, n, m, t, _, _) = ((n, m), t)
 
 approxTime :: (Int, Int, Int, Double, Double, Double) -> ((Int, Int), Double)
-approxTime (_, n, m, t, _, _) = ((n, m), t)
+approxTime (_, n, m, _, t, _) = ((n, m), t)
 
 
 mean :: [Double] -> Double
