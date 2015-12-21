@@ -200,9 +200,8 @@ genBench fileName testCase maxDuration stepSize numReps = do
   let mipTime (_,_,_,t,_,_) = t
 --  untilM mipTime
   let loop tests acc = do
-        print $ head tests
         r <- benchCFLP' testCase $ take numReps tests
-        print r
+        putStrLn $ show (fst . fst . head $ tests) ++ ": " ++ show (mean (map mipTime r))
         case r of (r' : _) ->
                     if mean (map mipTime r) < maxDuration
                     then loop (drop numReps tests) (acc ++ r)
