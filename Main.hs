@@ -111,15 +111,20 @@ choosePoints n' k' = map round [1,n/k..n]
   where n = fromIntegral n'
         k = fromIntegral k'
 
+getTestCaseData :: String -> Int -> Int -> IO CFLP
+getTestCaseData testCase =
+  case testCase of
+  "uniform1" -> randomEvenDistCFLP
+  "uniform2" -> randomEvenDist2CFLP
+  "uniform3" -> randomEvenDist3CFLP
+  _ -> randomEvenDistCFLP
+
 benchCFLP' :: String -> [((Int, Int), Int)]
            -> IO [(Int, Int, Int, Double, Double, Double)]
 benchCFLP' testCase points = do
   liftM concat $
     forM (zip [1..] points) $ \(id, ((n,m), s)) -> do
-      cflp <- case testCase of
-        "uniform1" -> randomEvenDistCFLP n m
-        "uniform2" -> randomEvenDist2CFLP n m
-        _ -> randomEvenDistCFLP n m
+      cflp <- getTestCaseData testCase n m
 
       if (isFeasible cflp) then
         -- repeat for exact time measurements
@@ -159,9 +164,10 @@ benchCFLP testCase n m k r = do
 iso8601 :: UTCTime -> String
 iso8601 = formatTime defaultTimeLocale "%FT%T%QZ"
 
-genData :: Int -> Int -> IO ()
-genData n m = do
-  cflp <- getFeasibleRandomCFLP n m
+genData :: String -> Int -> Int -> IO ()
+genData testCase n m = do
+  cflp <- getFeasibleCFLP $ getTestCaseData testCase n m
+
   ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
   ((approxObj, approxSol), approxTime) <- bench'$ solApprox cflp
 
@@ -257,10 +263,10 @@ main = do
       -> do let n = read n'
                 m = read m'
             runCFLP n m
-    ("gen-data"  : n' : m' : [])
+    ("gen-data"  : testCase : n' : m' : [])
       -> do let n = read n'
                 m = read m'
-            genData n m
+            genData testCase n m
     ("gen-bench" : fileName : testCase : maxDuration' : stepSize' : numReps' : [])
       -> do let maxDuration = read maxDuration'
                 stepSize = read stepSize'
@@ -344,6 +350,12 @@ randomEvenDistCFLP n m =
 -- Good for solutions where opened facilities are not necessarily the closest ones
 randomEvenDist2CFLP :: Int -> Int -> IO CFLP
 randomEvenDist2CFLP n m =
+  do fs <- randomFacilities n (0.0, 100000.0) (0.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
+     cs <- randomClients m (50.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
+     return $ CFLP fs cs (locationDistances fs cs)
+
+randomEvenDist3CFLP :: Int -> Int -> IO CFLP
+randomEvenDist3CFLP n m =
   do fs <- randomFacilities n (0.0, 100000.0) (0.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      cs <- randomClients m (50.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      return $ CFLP fs cs (locationDistances fs cs)
