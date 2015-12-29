@@ -310,6 +310,7 @@ solvedCflpFileWithPositions = do
   -- distances
   cijs <- replicateM n doubleList
   newline
+  newline
 
   -- solution
   n' <- fromIntegral <$> integer
