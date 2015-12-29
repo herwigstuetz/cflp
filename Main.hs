@@ -167,6 +167,9 @@ iso8601 = formatTime defaultTimeLocale "%FT%T%QZ"
 
 genData :: String -> Int -> Int -> IO ()
 genData testCase n m = do
+  -- Update logger for no output
+  updateGlobalLogger "cflp" (setLevel ERROR)
+
   cflp <- getFeasibleCFLP $ getTestCaseData testCase n m
 
   ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
