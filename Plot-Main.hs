@@ -14,13 +14,31 @@ readCFLPFile :: FilePath -> IO (Maybe CFLP)
 readCFLPFile fileName = do
   cflp <- readFile fileName
   return $ case parse cflpFile "cflp" cflp of
-    Left _ -> Nothing
+    Left  _    -> Nothing
     Right cflp -> Just cflp
 
 plotCFLPFile :: FilePath -> IO ()
 plotCFLPFile fileName = do
-  Just cflp <- readCFLPFile fileName
-  plotCFLP cflp (fileName -<.> "png")
+  cflp <- readCFLPFile fileName
+  case cflp of
+    Just cflp -> plotCFLP cflp (fileName -<.> "png")
+    Nothing -> putStrLn ("Could not read " ++ fileName)
+
+
+readSolvedCFLPFile :: FilePath -> IO (Maybe CFLP)
+readSolvedCFLPFile fileName = do
+  cflp <- readFile fileName
+  return $ case parse solvedCflpFile "cflp" cflp of
+    Left  _    -> Nothing
+    Right cflp -> Just cflp
+
+plotSolvedCFLPFile :: FilePath -> IO ()
+plotSolvedCFLPFile fileName = do
+  cflp <- readSolvedCFLPFile fileName
+  case cflp of
+    Just cflp -> plotCFLP cflp (fileName -<.> "png")
+    Nothing -> putStrLn ("Could not read " ++ fileName)
+
 
 main :: IO ()
 main = do
@@ -31,6 +49,6 @@ main = do
     ("gen" : dirName : [])
       -> do
         plotCFLPFile (dirName </> "problem.cflp")
-        plotCFLPFile (dirName </> "exact.cflp")
-        plotCFLPFile (dirName </> "approx.cflp")
+        plotSolvedCFLPFile (dirName </> "exact.sol")
+        plotSolvedCFLPFile (dirName </> "approx.sol")
     _ -> putStrLn "plot main usage"

@@ -177,8 +177,8 @@ genData testCase n m = do
 
   createDirectory dirName
   writeFile (dirName </> "problem.cflp") $ show cflp
-  writeFile (dirName </> "exact.sol") $ showCFLPSolution exactSol
-  writeFile (dirName </> "approx.sol") $ showCFLPSolution approxSol
+  writeFile (dirName </> "exact.sol") $ (show cflp) ++ (showCFLPSolution exactSol)
+  writeFile (dirName </> "approx.sol") $ (show cflp) ++ (showCFLPSolution approxSol)
   writeFile (dirName </> "stat.txt")
     $ printf ("exact: %.15f, approx: %.15f, ratio: %.15f, "
               ++ "exactTime: %.15f, approxTime: %.15f\n")

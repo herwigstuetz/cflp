@@ -372,6 +372,9 @@ cflpFileWithDistances = do
 cflpFile :: Stream s m Char => ParsecT s u m CFLP
 cflpFile = cflpFileWithPositions
 
+solvedCflpFile :: Stream s m Char => ParsecT s u m CFLP
+solvedCflpFile = solvedCflpFileWithPositions
+
 instance Show CFLP where
   show = showCFLP
 
