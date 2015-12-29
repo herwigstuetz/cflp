@@ -20,6 +20,7 @@ import qualified Data.Vector.Storable as VS
 import           Text.Parsec.Prim
 
 import           GHC.IO.Handle
+import           System.Process
 import           System.Directory
 import           System.IO
 import           Text.Printf
@@ -182,6 +183,9 @@ genData testCase n m = do
     $ printf ("exact: %.15f, approx: %.15f, ratio: %.15f, "
               ++ "exactTime: %.15f, approxTime: %.15f\n")
         exactObj approxObj (approxObj/exactObj) exactTime approxTime
+
+  putStrLn ("Running cflp-plot for " ++ dirName)
+  r <- createProcess (proc "cflp-plot" ["gen", dirName])
 
 --  plotCFLP cflp $ (dirName </> "problem.png")
 --  plotCFLP exactSol $ (dirName </> "exact.png")
