@@ -77,7 +77,7 @@ plotCFLP cflp name = do
 
     void $ forM ds'' $ \ (f, c, x) -> do
       setColors [opaque purple]
-      plot $ line "lines" $ [map fromPosition [f, c]]
+      plot $ line "" $ [map fromPosition [f, c]]
 
 
 fromPosition :: Position -> (Double, Double)
