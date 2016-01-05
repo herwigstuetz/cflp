@@ -3,6 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Trans.Maybe
 import           Data.Array
@@ -24,6 +25,8 @@ import           System.Process
 import           System.Directory
 import           System.IO
 import           Text.Printf
+
+import           Options.Applicative
 
 import           Foreign.C
 import           System.CPUTime
@@ -290,6 +293,87 @@ main = do
   -- Close logger
   close h
   return ()
+
+
+-- | Main
+
+data CflpOptions = CflpOptions
+  { inputFileName  :: Maybe FilePath
+  , inputGenerator :: Maybe String
+  , solveExact     :: Bool
+  , solveApprox    :: Bool
+  , outputFileName :: Maybe FilePath
+  , plotFileName   :: Maybe FilePath
+  , statsFileName  :: Maybe FilePath
+  , benchFileName  :: Maybe FilePath
+  }
+
+cflpOptions :: Parser CflpOptions
+cflpOptions = CflpOptions
+  <$> ( optional $ strOption
+      ( long "inputfile"
+     <> short 'i'
+     <> metavar "INPUTFILE"
+     <> help "Read problem from INPUTFILE" ))
+  <*> ( optional $ strOption
+      ( long "inputgenerator"
+     <> short 'g'
+     <> metavar "GENERATOROPTIONS"
+     <> help "Generate problem from GENERATOROPTIONS" ))
+  <*> switch
+      ( long "exact"
+     <> short 'e'
+     <> help "Solve problem as MIP" )
+  <*> switch
+      ( long "approx"
+     <> short 'a'
+     <> help "Solve problem with approximation algorithm" )
+  <*> ( optional $ strOption
+      ( long "outputfile"
+     <> short 'o'
+     <> metavar "OUTPUTFILE"
+     <> help "Write solution to OUTPUTFILE. If both -a and -e are specified, -approx and -exact are appended respectively." ))
+  <*> ( optional $ strOption
+      ( long "plotfile"
+     <> short 'p'
+     <> metavar "PLOTFILE"
+     <> help "Plot solution to PLOTFILE. If both -a and -e are specified, -approx and -exact are appended respectively." ))
+  <*> ( optional $ strOption
+      ( long "statsfile"
+     <> short 's'
+     <> metavar "STATSFILE"
+     <> help "Write statistics to STATFILE" ))
+  <*> ( optional $ strOption
+      ( long "benchfile"
+     <> short 'b'
+     <> metavar "BENCHFILE"
+     <> help "Write benchmark to BENCHFILE" ))
+
+execCflp :: CflpOptions -> IO ()
+execCflp opts = undefined
+
+main' :: IO ()
+main' = do
+  execParser opts >>= execCflp
+  where
+    opts = info (helper <*> cflpOptions)
+      ( fullDesc
+     <> progDesc "Solve CFLPs"
+     <> header "cflp - a program to test an approximative facility location algorithm" )
+
+-- | Input Layer
+
+-- | Read input file
+
+
+-- | Generate problem data
+
+
+-- | Solve Layer
+
+-- | Ouput Layer
+
+
 
 -- | Adapted from http://stackoverflow.com/questions/8901252/2d-array-in-haskell
 showTable arr =
