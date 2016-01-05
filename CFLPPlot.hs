@@ -50,12 +50,19 @@ plotCFLP cflp name = do
                             $ facilities cflp
         openFacilityRadii = map (\(_, _, x) -> x) openFacilitySpots
         maxOpenFacilityRadius = maximum openFacilityRadii
+
+        openFacilityFractions = fractionOpened (distances cflp)
+                                $ filter (\i -> y i > 0.9) -- use epsilon due to numerical errors
+                                $ facilities cflp
+        openFacilitySpots' = zipWith (\(x,y,r) f -> (x,y,r*f))
+          openFacilitySpots openFacilityFractions
+
     plot $ liftEC $ do
       area_spots_title .= "open facilities"
       area_spots_fillcolour .= blue
       area_spots_opacity .= 1.0
       area_spots_max_radius .= sqrt (maxOpenFacilityRadius / maxFacilityRadius) * 20.0
-      area_spots_values .= openFacilitySpots
+      area_spots_values .= openFacilitySpots'
 
     let clientSpots = spotDataFromClients $ clients cflp
         maxClientRadius = maximum $ map (\(_, _, x) -> x) clientSpots
@@ -89,6 +96,9 @@ spotDataFromFacilities fs = map (\(Facility _ _ u _ (Position xPos yPos)) -> (xP
 spotDataFromClients :: Clients -> [(Double, Double, Double)]
 spotDataFromClients cs = map (\(Client _ d (Position xPos yPos)) -> (xPos, yPos, d)) cs
 
+fractionOpened :: Distances -> Facilities -> [Double]
+fractionOpened ds fs = map sumOutFlow fs
+  where sumOutFlow f = sum [x d | ((fId, cId), d) <- assocs ds, fId == facilityId f]
 
 readBench :: String -> String -> IO ()
 readBench fileName plotName = do
