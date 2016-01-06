@@ -312,63 +312,93 @@ main = do
 
 -- | Main
 
-data CflpOptions = CflpOptions
+data CflpInputOptions = CflpInputOptions
   { inputFileName  :: Maybe FilePath
   , inputGenerator :: Maybe String
-  , solveExact     :: Bool
+  } deriving (Show)
+
+data CflpSolveOptions = CflpSolveOptions
+  { solveExact     :: Bool
   , solveApprox    :: Bool
-  , outputFileName :: Maybe FilePath
-  , plotFileName   :: Maybe FilePath
-  , statsFileName  :: Maybe FilePath
-  , benchFileName  :: Maybe FilePath
-  }
+  } deriving (Show)
+
+data CflpOutputOptions = CflpOutputOptions
+  { outputFileName :: Maybe FilePath
+  , outputFile     :: Bool
+  , plotFile       :: Bool
+  , statsFile      :: Bool
+  , benchFile      :: Bool
+  } deriving (Show)
+
+data CflpOptions = CflpOptions
+  { cflpInputOptions  :: CflpInputOptions
+  , cflpSolveOptions  :: CflpSolveOptions
+  , cflpOutputOptions :: CflpOutputOptions
+  } deriving (Show)
+  -- { inputFileName  :: Maybe FilePath
+  -- , inputGenerator :: Maybe String
+  -- , solveExact     :: Bool
+  -- , solveApprox    :: Bool
+  -- , outputFileName :: Maybe FilePath
+  -- , outputFile     :: Bool
+  -- , plotFile       :: Bool
+  -- , statsFile      :: Bool
+  -- , benchFile      :: Bool
+  -- } deriving (Show)
+
+--cflpInputOptions :: Parser CflpInputOptions
+--cflpInputOptions = subparser
 
 cflpOptions :: Parser CflpOptions
-cflpOptions = CflpOptions
-  <$> ( optional $ strOption
-      ( long "inputfile"
-     <> short 'i'
-     <> metavar "INPUTFILE"
-     <> help "Read problem from INPUTFILE" ))
-  <*> ( optional $ strOption
-      ( long "inputgenerator"
-     <> short 'g'
-     <> metavar "GENERATOROPTIONS"
-     <> help "Generate problem from GENERATOROPTIONS" ))
-  <*> switch
-      ( long "exact"
-     <> short 'e'
-     <> help "Solve problem as MIP" )
-  <*> switch
-      ( long "approx"
-     <> short 'a'
-     <> help "Solve problem with approximation algorithm" )
-  <*> ( optional $ strOption
-      ( long "outputfile"
-     <> short 'o'
-     <> metavar "OUTPUTFILE"
-     <> help "Write solution to OUTPUTFILE. If both -a and -e are specified, -approx and -exact are appended respectively." ))
-  <*> ( optional $ strOption
-      ( long "plotfile"
-     <> short 'p'
-     <> metavar "PLOTFILE"
-     <> help "Plot solution to PLOTFILE. If both -a and -e are specified, -approx and -exact are appended respectively." ))
-  <*> ( optional $ strOption
-      ( long "statsfile"
-     <> short 's'
-     <> metavar "STATSFILE"
-     <> help "Write statistics to STATFILE" ))
-  <*> ( optional $ strOption
-      ( long "benchfile"
-     <> short 'b'
-     <> metavar "BENCHFILE"
-     <> help "Write benchmark to BENCHFILE" ))
+cflpOptions =
+  CflpOptions
+  <$> (CflpInputOptions
+       <$> ( optional $ strOption
+             ( long "inputfile"
+               <> short 'i'
+               <> metavar "INPUTFILE"
+               <> help "Read problem from INPUTFILE" ))
+       <*> ( optional $ strOption
+             ( long "inputgenerator"
+               <> short 'g'
+               <> metavar "GENERATOROPTIONS"
+               <> help "Generate problem from GENERATOROPTIONS" )))
 
-execCflp :: CflpOptions -> IO ()
-execCflp opts = undefined
+  <*> (CflpSolveOptions
+       <$> switch
+       ( long "exact"
+         <> short 'e'
+         <> help "Solve problem as MIP" )
+       <*> switch
+       ( long "approx"
+         <> short 'a'
+         <> help "Solve problem with approximation algorithm" ))
 
-main' :: IO ()
-main' = do
+  <*> (CflpOutputOptions
+       <$> ( optional $ strOption
+             ( long "outputprefix"
+               <> short 'n'
+               <> metavar "OUTPUTPREFIX"
+               <> help "Add OUTPUTPREFIX prefix to output files. This only has an effect if at least one of -o, -p, -s, -b is specified." ))
+       <*> switch
+       ( long "outputfile"
+         <> short 'o'
+         <> help "Write solution to file(s)" )
+       <*> switch
+       ( long "plotfile"
+         <> short 'p'
+         <> help "Plot solution to file(s)" )
+       <*> switch
+       ( long "statsfile"
+         <> short 's'
+         <> help "Write statistics file(s)" )
+       <*> switch
+       ( long "benchfile"
+         <> short 'b'
+         <> help "Write benchmark file(s)" ))
+
+main :: IO ()
+main = do
   execParser opts >>= execCflp
   where
     opts = info (helper <*> cflpOptions)
@@ -376,18 +406,116 @@ main' = do
      <> progDesc "Solve CFLPs"
      <> header "cflp - a program to test an approximative facility location algorithm" )
 
+execCflp :: CflpOptions -> IO ()
+execCflp (CflpOptions inOpts solveOpts outOpts) = do
+  -- Input
+  cflps <- cflpInput inOpts
+
+  -- Solve
+  solvedCflps <- mapM (cflpSolve solveOpts) cflps
+
+  -- Output
+  (mapM_ . mapM_ . mapM_) (cflpOutput outOpts) solvedCflps
+
+  when (benchFile outOpts) $
+    cflpBench (fmap sequence (sequenceA solvedCflps))
+
 -- | Input Layer
-
--- | Read input file
-
-
--- | Generate problem data
-
+cflpInput :: CflpInputOptions -> IO [CFLP]
+cflpInput opts = do
+  case inputFileName opts of
+    Just fileName -> do
+      cflp <- readFile fileName
+      let cflp' = parse cflpFile (dropExtension fileName) cflp
+      case cflp' of
+        Left msg -> do
+          print msg
+          return []
+        Right cflp'' -> do
+          if not $ isFeasible cflp''
+            then error "CFLP not feasible"
+            else return [cflp'']
+    Nothing -> do
+      case inputGenerator opts of
+        Just generator -> do
+          let args = words generator
+          case args of
+            ("gen-data"  : testCase : n' : m' : []) -> do
+              let n = read n'
+                  m = read m'
+              cflp <- getFeasibleCFLP $ getTestCaseData testCase n m
+              return [cflp]
+            -- ("gen-bench" : fileName : testCase : maxDuration' : stepSize' : numReps' : []) -> do
+            --   let maxDuration = read maxDuration'
+            --       stepSize = read stepSize'
+            --       numReps = read numReps'
+            --   genBench fileName testCase maxDuration stepSize numReps
+            _  -> return []
+        Nothing -> return []
 
 -- | Solve Layer
+data Pair a = Pair a a
+  deriving (Show)
+
+instance Functor Pair where
+  fmap f (Pair a b) = Pair (f a) (f b)
+
+instance Applicative Pair where
+  pure a = Pair a a
+  Pair f g <*> Pair a b = Pair (f a) (f b)
+
+instance Foldable Pair where
+  foldMap f (Pair a b) = f a `mappend` f b
+
+instance Traversable Pair where
+  traverse f (Pair a b) = Pair <$> (f a) <*> (f b)
+
+cflpSolve :: CflpSolveOptions -> CFLP -> IO (Pair (Maybe SolvedCflp))
+cflpSolve opts cflp = do
+  -- want:
+  --  return $ (map when (Pair (solveExact opts) (solveApprox opts) (Pair solveExact solveApprox) )) <*> pure cflp
+  exact <- case solveExact opts of
+    True -> do
+      ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
+      return $ Just $ SolvedCflp CflpExact exactSol exactObj exactTime
+    False -> return Nothing
+  approx <- case solveApprox opts of
+    True -> do
+      ((approxObj, approxSol), approxTime) <- bench' $ solApprox cflp
+      return $ Just $ SolvedCflp CflpApprox approxSol approxObj approxTime
+    False -> return Nothing
+  return $ Pair exact approx
 
 -- | Ouput Layer
+data CflpType = CflpExact | CflpApprox
+  deriving (Show, Eq)
 
+data SolvedCflp = SolvedCflp
+  { cflpType :: CflpType
+  , cflpSol  :: CFLP
+  , cflpObj  :: Double
+  , cflpTime :: Double
+  } deriving (Show)
+
+cflpOutput :: CflpOutputOptions -> SolvedCflp -> IO ()
+cflpOutput opts (SolvedCflp ty cflp obj time) = do
+  let dirName = fromMaybe "." $ outputFileName opts
+      fileName = if ty == CflpExact then "exact" else "approx"
+
+  when ((outputFile opts) || (plotFile opts)) $ do
+    createDirectoryIfMissing True dirName
+    writeFile (dirName </> "problem.cflp") $ show cflp
+    writeFile (dirName </> fileName <.>"sol") $ (show cflp) ++ (showCFLPSolution cflp)
+  when (plotFile opts) $ do
+    putStrLn ("Running cflp-plot for " ++ dirName)
+    r <- createProcess (proc "cflp-plot" ["gen", dirName])
+    return ()
+--  when (statsFile opts) $ do
+--    undefined
+  return ()
+
+cflpBench :: Pair (Maybe [SolvedCflp]) -> IO ()
+cflpBench (Pair exacts approxs) = undefined
 
 
 -- | Adapted from http://stackoverflow.com/questions/8901252/2d-array-in-haskell
