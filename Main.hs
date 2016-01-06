@@ -6,6 +6,7 @@ module Main where
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Trans.Maybe
+import           Control.Concurrent
 import           Data.Array
 import           Data.Function
 import           Data.List                 (find, group, intercalate, maximumBy,
@@ -120,7 +121,6 @@ getTestCaseData testCase =
   case testCase of
   "uniform1" -> randomEvenDistCFLP
   "uniform2" -> randomEvenDist2CFLP
-  "uniform3" -> randomEvenDist3CFLP
   _ -> randomEvenDistCFLP
 
 benchCFLP' :: String -> [((Int, Int), Int)]
@@ -168,20 +168,15 @@ benchCFLP testCase n m k r = do
 iso8601 :: UTCTime -> String
 iso8601 = formatTime defaultTimeLocale "%FT%T%QZ"
 
-genData :: String -> Int -> Int -> IO ()
-genData testCase n m = do
+cflpToResultTree :: FilePath -> CFLP -> IO ()
+cflpToResultTree dirName cflp = do
   -- Update logger for no output
   updateGlobalLogger "cflp" (setLevel ERROR)
-
-  cflp <- getFeasibleCFLP $ getTestCaseData testCase n m
 
   ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
   ((approxObj, approxSol), approxTime) <- bench'$ solApprox cflp
 
-  currentTime <- getCurrentTime
-  let dirName = iso8601 currentTime
-
-  createDirectory dirName
+  createDirectoryIfMissing True dirName
   writeFile (dirName </> "problem.cflp") $ show cflp
   writeFile (dirName </> "exact.sol") $ (show cflp) ++ (showCFLPSolution exactSol)
   writeFile (dirName </> "approx.sol") $ (show cflp) ++ (showCFLPSolution approxSol)
@@ -193,11 +188,30 @@ genData testCase n m = do
   putStrLn ("Running cflp-plot for " ++ dirName)
   r <- createProcess (proc "cflp-plot" ["gen", dirName])
 
---  plotCFLP cflp $ (dirName </> "problem.png")
---  plotCFLP exactSol $ (dirName </> "exact.png")
---  plotCFLP approxSol $ (dirName </> "approx.png")
-
   return ()
+
+genData :: String -> Int -> Int -> IO ()
+genData testCase n m = do
+  currentTime <- getCurrentTime
+  let dirName = iso8601 currentTime
+
+  cflp <- getFeasibleCFLP $ getTestCaseData testCase n m
+  cflpToResultTree dirName cflp
+
+varyData :: IO ()
+varyData = do
+  let n = 20
+      m = 10
+      fi = 100.0
+      ui = 100.0
+      a = 5.0 -- ratio of ui : dj
+  forM_ [0.5, 1.0, 1.5, 2.0] $ \ a -> do
+    let dj = a * ui
+    forM_ [1..5] $ \ _ -> do
+      putStrLn $ unwords $ map show [fromIntegral n, fromIntegral m, fi, ui, a, dj]
+      cflp <- getFeasibleCFLP $ randomEvenDist3CFLP n m fi ui dj
+      cflpToResultTree "result-data" cflp
+      threadDelay 5000000
 
 mean :: [Double] -> Double
 mean list = (sum list) / (fromIntegral $ length list)
@@ -282,6 +296,7 @@ main = do
                 stepSize = read stepSize'
                 numReps = read numReps'
             void $ genBench fileName testCase maxDuration stepSize numReps
+    ("vary-data" : []) -> varyData
     ("bench"     : testCase : n' : m' : k' : r' : [])
       -> do let n = read n'
                 m = read m'
@@ -399,7 +414,11 @@ randomPosition xRange yRange =
          (yPos, _) = randomR yRange p2
      return $ Position xPos yPos
 
-randomFacilities :: Int -> (Double, Double) -> (Double, Double) -> (Position, Position) -> IO Facilities
+randomFacilities :: Int
+                 -> (Double, Double)
+                 -> (Double, Double)
+                 -> (Position, Position)
+                 -> IO Facilities
 randomFacilities n costRange capRange posRange =
   do g <- newStdGen
      h <- newStdGen
@@ -445,10 +464,10 @@ randomEvenDist2CFLP n m =
      cs <- randomClients m (50.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      return $ CFLP fs cs (locationDistances fs cs)
 
-randomEvenDist3CFLP :: Int -> Int -> IO CFLP
-randomEvenDist3CFLP n m =
-  do fs <- randomFacilities n (0.0, 100000.0) (0.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
-     cs <- randomClients m (50.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
+randomEvenDist3CFLP :: Int -> Int -> Double -> Double -> Double -> IO CFLP
+randomEvenDist3CFLP n m fi ui dj =
+  do fs <- randomFacilities n (0.0, fi) (0.0, ui) (Position 0.0 0.0, Position 100.0 100.0)
+     cs <- randomClients m (50.0, dj) (Position 0.0 0.0, Position 100.0 100.0)
      return $ CFLP fs cs (locationDistances fs cs)
 
 getFeasibleRandomCFLP n m = getFeasibleCFLP $ randomEvenDist2CFLP n m
