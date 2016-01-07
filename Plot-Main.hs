@@ -48,7 +48,7 @@ main = do
       -> void $ readBench fileName (fileName -<.> "png")
     ("gen" : dirName : [])
       -> do
-        plotCFLPFile (dirName </> "problem.cflp")
-        plotSolvedCFLPFile (dirName </> "exact.sol")
-        plotSolvedCFLPFile (dirName </> "approx.sol")
+        files <- getDirectoryContents dirName
+        mapM_ (plotCFLPFile       . (dirName </>)) $ filter ((== ".cflp") . takeExtension) files
+        mapM_ (plotSolvedCFLPFile . (dirName </>)) $ filter ((== ".sol")  . takeExtension) files
     _ -> putStrLn "plot main usage"
