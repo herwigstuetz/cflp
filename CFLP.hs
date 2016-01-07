@@ -164,7 +164,8 @@ showDistancesSol ds = unlines [unwords [show . x $ ds!(i,j) | j <- [0..m]]
   where (n,m) = snd . bounds $ ds
 
 
-showCFLP cflp = (show . length . facilities $ cflp) ++ "\n" ++
+showCFLP cflp = (cflpName $ cflp) ++ "\n" ++
+                (show . length . facilities $ cflp) ++ "\n" ++
                 (showFacilities . facilities $ cflp) ++ "\n" ++
                 (show . length . clients $ cflp) ++ "\n" ++
                 (showClients . clients $ cflp) ++ "\n" ++
