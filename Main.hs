@@ -116,19 +116,21 @@ choosePoints n' k' = map round [1,n/k..n]
   where n = fromIntegral n'
         k = fromIntegral k'
 
-getTestCaseData :: String -> Int -> Int -> IO CFLP
-getTestCaseData testCase =
+getTestCaseData :: String -> String -> Int -> Int -> IO CFLP
+getTestCaseData testCase name =
   case testCase of
-  "uniform1" -> randomEvenDistCFLP testCase
-  "uniform2" -> randomEvenDist2CFLP testCase
-  _ -> randomEvenDistCFLP testCase
+  "uniform1" -> randomEvenDistCFLP name
+  "uniform2" -> randomEvenDist2CFLP name
+  _ -> randomEvenDistCFLP name
 
 benchCFLP' :: String -> [((Int, Int), Int)]
            -> IO [(Int, Int, Int, Double, Double, Double)]
 benchCFLP' testCase points = do
   liftM concat $
     forM (zip [1..] points) $ \(id, ((n,m), s)) -> do
-      cflp <- getTestCaseData testCase n m
+      currentTime <- getCurrentTime
+      let name = iso8601 currentTime
+      cflp <- getTestCaseData testCase name n m
 
       if (isFeasible cflp) then
         -- repeat for exact time measurements
