@@ -446,7 +446,11 @@ cflpInput opts = do
             ("gen-data"  : testCase : n' : m' : []) -> do
               let n = read n'
                   m = read m'
-              cflp <- getFeasibleCFLP $ getTestCaseData testCase n m
+
+              currentTime <- getCurrentTime
+              let name = iso8601 currentTime
+
+              cflp <- getFeasibleCFLP $ getTestCaseData name testCase n m
               return [cflp]
             -- ("gen-bench" : fileName : testCase : maxDuration' : stepSize' : numReps' : []) -> do
             --   let maxDuration = read maxDuration'
