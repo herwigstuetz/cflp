@@ -1,9 +1,9 @@
 module Main where
 
 import Control.Monad (void)
-import System.FilePath ((-<.>), (</>))
+import System.FilePath ((-<.>), (</>), takeExtension)
+import System.Directory (getDirectoryContents)
 import System.Environment (getArgs)
-
 
 import           Text.Parsec.Prim
 
