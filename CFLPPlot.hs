@@ -19,7 +19,7 @@ normalize xs = map (\x -> x / (maximum xs)) xs
 plotCFLP :: CFLP -> String -> IO ()
 plotCFLP cflp name = do
   toFile def name $ do
-    layout_title .= "CFLP"
+    layout_title .= cflpName cflp
     layout_background .= solidFillStyle (opaque white)
     layout_foreground .= (opaque black)
     layout_left_axis_visibility . axis_show_ticks .= False
