@@ -16,7 +16,7 @@ import           Text.Printf
 
 import qualified Data.Vector                   as V
 
-import Control.Applicative hiding ((<|>))
+import Control.Applicative hiding ((<|>), many)
 
 import Text.ParserCombinators.Parsec
 import Text.Parsec
@@ -67,7 +67,8 @@ data Distance = Distance { i :: FacilityId
 
 type Distances = Array (FacilityId, ClientId) Distance
 
-data CFLP = CFLP { facilities :: Facilities
+data CFLP = CFLP { cflpName   :: String
+                 , facilities :: Facilities
                  , clients    :: Clients
                  , distances  :: Distances}
             deriving (Eq)
@@ -250,6 +251,10 @@ doubleList = (double `sepBy` char ' ') <* newline
 
 cflpFileWithPositions :: (Stream s m Char) => ParsecT s u m CFLP
 cflpFileWithPositions = do
+  -- name of problem
+  name <- many $ noneOf "\n"
+  newline
+
   -- number of facilities
   n <- fromIntegral <$> integer
   newline
@@ -282,10 +287,14 @@ cflpFileWithPositions = do
       facilities  = zipWith5 Facility [0,1..] fs us [0.0,0.0..] facilityPos
       clients     = zipWith3 Client [0,1..] ds clientPos
       distances   = locationDistances facilities clients
-  return $ CFLP facilities clients distances
+  return $ CFLP name facilities clients distances
 
 solvedCflpFileWithPositions :: (Stream s m Char) => ParsecT s u m CFLP
 solvedCflpFileWithPositions = do
+  -- name of problem
+  name <- many $ noneOf "\n"
+  newline
+
   -- number of facilities
   n <- fromIntegral <$> integer
   newline
@@ -340,10 +349,14 @@ solvedCflpFileWithPositions = do
 
       distances  = locationDistances facilities clients
       distances' = sendFlowDistances distances xijs
-  return $ CFLP facilities clients distances'
+  return $ CFLP name facilities clients distances'
 
 cflpFileWithDistances :: (Stream s m Char) => ParsecT s u m CFLP
 cflpFileWithDistances = do
+  -- name of problem
+  name <- many $ noneOf "\n"
+  newline
+
   -- number of facilities
   n <- fromIntegral <$> integer
   newline
@@ -368,7 +381,7 @@ cflpFileWithDistances = do
 
   let facilities = createFacilitiesFromList $ zip fs us
       clients    = createClientsFromList ds
-  return $ CFLP facilities clients (array ((0,0),(n-1,m-1)) cijs')
+  return $ CFLP name facilities clients (array ((0,0),(n-1,m-1)) cijs')
 
 cflpFile :: Stream s m Char => ParsecT s u m CFLP
 cflpFile = cflpFileWithPositions
@@ -380,7 +393,7 @@ instance Show CFLP where
   show = showCFLP
 
 isFeasible :: CFLP -> Bool
-isFeasible (CFLP fs cs _) = sum (map u fs) >= sum ( map d cs)
+isFeasible (CFLP _ fs cs _) = sum (map u fs) >= sum ( map d cs)
 
 
 -- | Accessors
@@ -414,7 +427,7 @@ getDistanceById ds i j = Just . c $ ds!(i,j)
 -- | CFLP -> LP
 
 createObjFromCFLP :: CFLP -> [Double]
-createObjFromCFLP (CFLP fac clients dists) =
+createObjFromCFLP (CFLP _ fac clients dists) =
   [f | (Facility _ f _ _ _) <- fac]
 
 seqTuple :: (a, b, Maybe c) -> Maybe (a, b, c)
@@ -422,7 +435,7 @@ seqTuple (a, b, Just c) = Just (a, b, c)
 seqTuple (_, _, Nothing) = Nothing
 
 createObjIndexedListFromCFLP :: CFLP -> Maybe [(Int, Int, Double)]
-createObjIndexedListFromCFLP cflp@(CFLP _ cs ds) =
+createObjIndexedListFromCFLP cflp@(CFLP _ _ cs ds) =
   sequence [seqTuple (i, j, (*) <$> demandOf j <*> Just c) | (Distance i j c _) <- elems ds]
   where demandOf :: Int -> Maybe Double
         demandOf j = d <$> findClient cs j
@@ -435,7 +448,7 @@ sortObjList = sortBy f
                                   | otherwise = GT
 
 createObj :: CFLP -> Maybe (V.Vector Double)
-createObj p@(CFLP fs cs ds) = do
+createObj p@(CFLP _ fs cs ds) = do
   let f (_,_,d) = d
   ys <- return $ createObjFromCFLP p
   xs <- createObjIndexedListFromCFLP p

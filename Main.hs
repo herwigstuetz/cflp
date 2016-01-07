@@ -69,7 +69,7 @@ usage = putStrLn "write n m filename|read filename|read-mip filename|run n m|ben
 
 writeCFLP :: Int -> Int -> FilePath -> IO ()
 writeCFLP n m fileName = do
-  cflp <- getFeasibleRandomCFLP n m
+  cflp <- getFeasibleRandomCFLP "cflp" n m
   writeFile fileName (showCFLP'' cflp)
 
 readCFLP :: FilePath -> IO ()
@@ -101,7 +101,7 @@ readMip fileName = do
 
 runCFLP :: Int -> Int -> IO ()
 runCFLP n m = do
-  cflp <- getFeasibleRandomCFLP n m
+  cflp <- getFeasibleRandomCFLP "cflp" n m
   (obj, cflp') <- solApprox cflp
 --  plotCFLP cflp' "solved.png"
   writeSol cflp'
@@ -119,9 +119,9 @@ choosePoints n' k' = map round [1,n/k..n]
 getTestCaseData :: String -> Int -> Int -> IO CFLP
 getTestCaseData testCase =
   case testCase of
-  "uniform1" -> randomEvenDistCFLP
-  "uniform2" -> randomEvenDist2CFLP
-  _ -> randomEvenDistCFLP
+  "uniform1" -> randomEvenDistCFLP testCase
+  "uniform2" -> randomEvenDist2CFLP testCase
+  _ -> randomEvenDistCFLP testCase
 
 benchCFLP' :: String -> [((Int, Int), Int)]
            -> IO [(Int, Int, Int, Double, Double, Double)]
@@ -190,13 +190,13 @@ cflpToResultTree dirName cflp = do
 
   return ()
 
-genData :: String -> Int -> Int -> IO ()
-genData testCase n m = do
-  currentTime <- getCurrentTime
-  let dirName = iso8601 currentTime
+-- genData :: String -> Int -> Int -> IO ()
+-- genData testCase n m = do
+--   currentTime <- getCurrentTime
+--   let dirName = iso8601 currentTime
 
-  cflp <- getFeasibleCFLP $ getTestCaseData testCase n m
-  cflpToResultTree dirName cflp
+--   cflp <- getFeasibleCFLP $ getTestCaseData testCase n m
+--   cflpToResultTree dirName cflp
 
 varyData :: IO ()
 varyData = do
@@ -208,8 +208,9 @@ varyData = do
   forM_ [0.5, 1.0, 1.5, 2.0] $ \ a -> do
     let dj = a * ui
     forM_ [1..5] $ \ _ -> do
-      putStrLn $ unwords $ map show [fromIntegral n, fromIntegral m, fi, ui, a, dj]
-      cflp <- getFeasibleCFLP $ randomEvenDist3CFLP n m fi ui dj
+      let name = unwords $ map show [fromIntegral n, fromIntegral m, fi, ui, a, dj]
+      putStrLn $ name
+      cflp <- getFeasibleCFLP $ randomEvenDist3CFLP name n m fi ui dj
       cflpToResultTree "result-data" cflp
       threadDelay 5000000
 
@@ -579,26 +580,26 @@ getFeasibleCFLP gen =
        then return cflp
        else getFeasibleCFLP gen
 
-randomEvenDistCFLP :: Int -> Int -> IO CFLP
-randomEvenDistCFLP n m =
+randomEvenDistCFLP :: String -> Int -> Int -> IO CFLP
+randomEvenDistCFLP name n m =
   do fs <- randomFacilities n (0.0, 100.0) (0.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      cs <- randomClients m (0.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
-     return $ CFLP fs cs (locationDistances fs cs)
+     return $ CFLP name fs cs (locationDistances fs cs)
 
 -- Good for solutions where opened facilities are not necessarily the closest ones
-randomEvenDist2CFLP :: Int -> Int -> IO CFLP
-randomEvenDist2CFLP n m =
+randomEvenDist2CFLP :: String -> Int -> Int -> IO CFLP
+randomEvenDist2CFLP name n m =
   do fs <- randomFacilities n (0.0, 100000.0) (0.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
      cs <- randomClients m (50.0, 100.0) (Position 0.0 0.0, Position 100.0 100.0)
-     return $ CFLP fs cs (locationDistances fs cs)
+     return $ CFLP name fs cs (locationDistances fs cs)
 
-randomEvenDist3CFLP :: Int -> Int -> Double -> Double -> Double -> IO CFLP
-randomEvenDist3CFLP n m fi ui dj =
+randomEvenDist3CFLP :: String -> Int -> Int -> Double -> Double -> Double -> IO CFLP
+randomEvenDist3CFLP name n m fi ui dj =
   do fs <- randomFacilities n (0.0, fi) (0.0, ui) (Position 0.0 0.0, Position 100.0 100.0)
      cs <- randomClients m (50.0, dj) (Position 0.0 0.0, Position 100.0 100.0)
-     return $ CFLP fs cs (locationDistances fs cs)
+     return $ CFLP name fs cs (locationDistances fs cs)
 
-getFeasibleRandomCFLP n m = getFeasibleCFLP $ randomEvenDist2CFLP n m
+getFeasibleRandomCFLP name n m = getFeasibleCFLP $ randomEvenDist2CFLP name n m
 
 
 openFacility :: Facility -> Double -> Facility
@@ -905,7 +906,8 @@ solApprox cflp = do
   infoM "cflp" "Open facilities:"
   infoM "cflp" $ show openedIds
 
-  let openedCFLP = CFLP (map (\f -> f { y = 1.0 })
+  let openedCFLP = CFLP (cflpName cflp)
+                        (map (\f -> f { y = 1.0 })
                          (filter (\f -> facilityId f `elem` openedIds)
                           (facilities cflp)))
                         (clients cflp)
@@ -925,7 +927,8 @@ solApprox cflp = do
   infoM "cflp" $ show openedMcf
 
   infoM "cflp" "Setting solution into original problem"
-  let solvedCFLP = CFLP (updateFacilities
+  let solvedCFLP = CFLP (cflpName openedCFLP)
+                        (updateFacilities
                          (facilities cflp)
                          (facilities openedMcf))
                         (clients openedMcf)
