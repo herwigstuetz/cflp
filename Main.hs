@@ -484,22 +484,18 @@ cflpSolve opts cflp = do
   exact <- case solveExact opts of
     True -> do
       ((exactObj, exactSol), exactTime) <- bench' $ solExact cflp
-      return $ Just $ SolvedCflp CflpExact exactSol exactObj exactTime
+      return $ Just $ SolvedCflp exactSol exactObj exactTime
     False -> return Nothing
   approx <- case solveApprox opts of
     True -> do
       ((approxObj, approxSol), approxTime) <- bench' $ solApprox cflp
-      return $ Just $ SolvedCflp CflpApprox approxSol approxObj approxTime
+      return $ Just $ SolvedCflp approxSol approxObj approxTime
     False -> return Nothing
   return $ Pair exact approx
 
 -- | Ouput Layer
-data CflpType = CflpExact | CflpApprox
-  deriving (Show, Eq)
-
 data SolvedCflp = SolvedCflp
-  { cflpType :: CflpType
-  , cflpSol  :: CFLP
+  { cflpSol  :: CFLP
   , cflpObj  :: Double
   , cflpTime :: Double
   } deriving (Show)
@@ -512,14 +508,14 @@ cflpOutput opts (Pair exact approx) = do
   when ((outputFile opts) || (plotFile opts)) $ do
     createDirectoryIfMissing True dirName
     case exact of
-      Just (SolvedCflp _ cflp _ _) -> do
+      Just (SolvedCflp cflp _ _) -> do
 
         -- problem in exact and approx *should* be the same, so could only print exact
         writeFile (dirName </> "problem.cflp") $ show cflp
         writeFile (dirName </> (cflpName cflp) ++ "-exact" <.>"sol") $ (show cflp) ++ (showCFLPSolution cflp)
       Nothing -> return ()
     case approx of
-      Just (SolvedCflp _ cflp _ _) -> do
+      Just (SolvedCflp cflp _ _) -> do
         -- problem in exact and approx *should* be the same, so could only print approx
         writeFile (dirName </> "problem.cflp") $ show cflp
         writeFile (dirName </> (cflpName cflp) ++ "-approx" <.>"sol") $ (show cflp) ++ (showCFLPSolution cflp)
@@ -531,7 +527,7 @@ cflpOutput opts (Pair exact approx) = do
 
   when (statsFile opts) $ do
     case (exact, approx) of
-     (Just (SolvedCflp _ _ exactObj exactTime), Just (SolvedCflp _ _ approxObj approxTime)) ->
+     (Just (SolvedCflp _ exactObj exactTime), Just (SolvedCflp _ approxObj approxTime)) ->
        writeFile (dirName </> "stats.txt") $ printf ("exact: %.15f, approx: %.15f, ratio: %.15f, "
                                                      ++ "exactTime: %.15f, approxTime: %.15f\n")
                                                exactObj approxObj (approxObj/exactObj) exactTime approxTime
