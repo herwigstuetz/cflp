@@ -49,11 +49,11 @@ plotCFLP cflp name = do
                             $ filter (\i -> y i > 0.9) -- use epsilon due to numerical errors
                             $ facilities cflp
         openFacilityRadii = map (\(_, _, x) -> x) openFacilitySpots
-        maxOpenFacilityRadius = maximum openFacilityRadii
-
-        openFacilityFractions = fractionOpened (distances cflp)
+        openFacilityFractions = fractionSent (distances cflp) (clients cflp)
                                 $ filter (\i -> y i > 0.9) -- use epsilon due to numerical errors
                                 $ facilities cflp
+        maxOpenFacilityRadius = maximum $ zipWith (*) openFacilityRadii openFacilityFractions
+
         openFacilitySpots' = zipWith (\(x,y,r) f -> (x,y,r*f))
           openFacilitySpots openFacilityFractions
 
@@ -96,9 +96,10 @@ spotDataFromFacilities fs = map (\(Facility _ _ u _ (Position xPos yPos)) -> (xP
 spotDataFromClients :: Clients -> [(Double, Double, Double)]
 spotDataFromClients cs = map (\(Client _ d (Position xPos yPos)) -> (xPos, yPos, d)) cs
 
-fractionOpened :: Distances -> Facilities -> [Double]
-fractionOpened ds fs = map sumOutFlow fs
-  where sumOutFlow f = sum [x d | ((fId, cId), d) <- assocs ds, fId == facilityId f]
+fractionSent :: Distances -> Clients -> Facilities -> [Double]
+fractionSent ds cs fs = map (\f -> (fracOutFlow f) / (u f)) fs
+  where fracOutFlow f = traceMsgId "fof" $ sum [x dist * d | ((fId, cId), dist) <- assocs ds, fId == facilityId f, let Just d = getDemandById cs cId]
+
 
 readBench :: String -> String -> IO ()
 readBench fileName plotName = do
