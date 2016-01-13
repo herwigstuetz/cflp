@@ -98,7 +98,7 @@ spotDataFromClients cs = map (\(Client _ d (Position xPos yPos)) -> (xPos, yPos,
 
 fractionSent :: Distances -> Clients -> Facilities -> [Double]
 fractionSent ds cs fs = map (\f -> (fracOutFlow f) / (u f)) fs
-  where fracOutFlow f = traceMsgId "fof" $ sum [x dist * d | ((fId, cId), dist) <- assocs ds, fId == facilityId f, let Just d = getDemandById cs cId]
+  where fracOutFlow f = sum [x dist * d | ((fId, cId), dist) <- assocs ds, fId == facilityId f, let Just d = getDemandById cs cId]
 
 
 readBench :: String -> String -> IO ()
