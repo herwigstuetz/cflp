@@ -457,7 +457,7 @@ cflpInput opts = do
             --       stepSize = read stepSize'
             --       numReps = read numReps'
             --   genBench fileName testCase maxDuration stepSize numReps
-            _  -> return []
+            _  -> error "Illegal arguments"
         Nothing -> return []
 
 -- | Solve Layer
