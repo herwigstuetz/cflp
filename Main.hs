@@ -503,7 +503,10 @@ data SolvedCflp = SolvedCflp
 cflpOutput :: CflpOutputOptions -> Pair (Maybe SolvedCflp) -> IO ()
 cflpOutput opts (Pair exact approx) = do
 
-  let dirName = fromMaybe "." $ outputFileName opts
+  currentTime' <- getCurrentTime
+  let currentTime = iso8601 currentTime'
+      dirName' = fromMaybe "." $ outputFileName opts
+      dirName = if dirName' == "%t" then currentTime else dirName'
 
   when ((outputFile opts) || (plotFile opts)) $ do
     createDirectoryIfMissing True dirName
