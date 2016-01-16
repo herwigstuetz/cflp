@@ -421,14 +421,20 @@ execCflp (CflpOptions inOpts solveOpts outOpts) = do
   -- Input
   cflps <- cflpInput inOpts
 
-  -- Solve
-  solvedCflps <- mapM (cflpSolve solveOpts . snd) cflps
+--  -- Solve
+--  solvedCflps <- mapM (cflpSolve solveOpts . snd) cflps
 
-  -- Output
-  mapM_ (cflpOutput outOpts) $ zip (map fst cflps) solvedCflps
+--  -- Output
+--  mapM_ (cflpOutput outOpts) $ zip (map fst cflps) solvedCflps
+
+  -- Solve and Output fused
+  mapM_ (\ (genOpts, cflp) -> cflpSolve solveOpts cflp >>= \ sol -> (cflpOutput outOpts (genOpts, sol)) ) cflps
 
   when (benchFile outOpts) $
     cflpBench (fmap sequence (sequenceA solvedCflps))
+
+
+
 
 
 -- | Input Layer
