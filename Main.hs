@@ -77,32 +77,34 @@ writeCFLP n m fileName = do
   cflp <- getFeasibleRandomCFLP "cflp" n m
   writeFile fileName (showCFLP'' cflp)
 
-readCFLP :: FilePath -> IO ()
-readCFLP fileName = do
-  cflp <- readFile fileName
-  let cflp' = parse cflpFile "cflp" cflp
-  case cflp' of
-    Left msg -> print msg
-    Right cflp'' ->
-      if not $ isFeasible cflp''
-      then error "CFLP not feasible"
-      else do (obj, cflp''') <- solApprox cflp''
-              putStrLn $ "Objective: " ++ show obj
-              putStrLn $ showCFLPSolution cflp'''
-              return ()
+-- readCFLP :: FilePath -> IO ()
+-- readCFLP fileName = do
+--   cflp <- readFile fileName
+--   let cflp' = parse cflpFile "cflp" cflp
+--   case cflp' of
+--     Left msg -> print msg
+--     Right cflp'' ->
+--       if not $ isFeasible cflp''
+--       then error "CFLP not feasible"
+--       else cflpToResultTree "." cflp''
 
-readMip :: FilePath -> IO ()
-readMip fileName = do
-  cflp <- readFile fileName
-  let cflp' = parse cflpFile "cflp" cflp
-  case cflp' of
-    Left msg -> print msg
-    Right cflp'' ->
-      if not $ isFeasible cflp''
-      then error "CFLP not feasible"
-      else do (obj, sol) <- solExact cflp''
-              putStrLn $ "Objective: " ++ show obj
-              writeSol sol
+--         -- (obj, cflp''') <- solApprox cflp''
+--         -- putStrLn $ "Objective: " ++ show obj
+--         -- putStrLn $ showCFLPSolution cflp'''
+--         -- return ()
+
+-- readMip :: FilePath -> IO ()
+-- readMip fileName = do
+--   cflp <- readFile fileName
+--   let cflp' = parse cflpFile "cflp" cflp
+--   case cflp' of
+--     Left msg -> print msg
+--     Right cflp'' ->
+--       if not $ isFeasible cflp''
+--       then error "CFLP not feasible"
+--       else do (obj, sol) <- solExact cflp''
+--               putStrLn $ "Objective: " ++ show obj
+--               writeSol sol
 
 runCFLP :: Int -> Int -> IO ()
 runCFLP n m = do
@@ -273,8 +275,8 @@ writeSol cflp = do
   putStrLn "Solution:"
   putStrLn (showCFLPSolution cflp)
 
-main :: IO ()
-main = do
+main' :: IO ()
+main' = do
   -- Set up logger
   h <- fileHandler "cflp.log" DEBUG
        >>= \lh -> return $
@@ -287,18 +289,18 @@ main = do
       -> do let n = read n'
                 m = read m'
             writeCFLP n m fileName
-    ("read"      : fileName : [])
-      -> readCFLP fileName
-    ("read-mip"  : fileName : [])
-      -> readMip fileName
+    -- ("read"      : fileName : [])
+    --   -> readCFLP fileName
+    -- ("read-mip"  : fileName : [])
+    --   -> readMip fileName
     ("run"       : n' : m' : [])
       -> do let n = read n'
                 m = read m'
             runCFLP n m
-    ("gen-data"  : testCase : n' : m' : [])
-      -> do let n = read n'
-                m = read m'
-            genData testCase n m
+    -- ("gen-data"  : testCase : n' : m' : [])
+    --   -> do let n = read n'
+    --             m = read m'
+    --         genData testCase n m
     ("gen-bench" : fileName : testCase : maxDuration' : stepSize' : numReps' : [])
       -> do let maxDuration = read maxDuration'
                 stepSize = read stepSize'
