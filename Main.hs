@@ -440,14 +440,14 @@ data CflpGeneratorOptions =
 instance Show CflpGeneratorOptions where
   show (CflpGen1 fileName n m)
     = "file: " ++ fileName
-    ++ " n: " ++ show n
-    ++ " m: " ++ show m
+    ++ ", n: " ++ show n
+    ++ ", m: " ++ show m
   show (CflpGen2 n m ui dj fi)
     = "n: " ++ show n
-    ++ " m: " ++ show m
-    ++ " ui: " ++ show ui
-    ++ " dj: " ++ show dj
-    ++ " fi: " ++ show fi
+    ++ ", m: " ++ show m
+    ++ ", ui: " ++ show ui
+    ++ ", dj: " ++ show dj
+    ++ ", fi: " ++ show fi
 
 cflpInput :: CflpInputOptions -> IO [(CflpGeneratorOptions, CFLP)]
 cflpInput opts = do
