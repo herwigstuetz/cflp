@@ -420,16 +420,34 @@ execCflp (CflpOptions inOpts solveOpts outOpts) = do
   cflps <- cflpInput inOpts
 
   -- Solve
-  solvedCflps <- mapM (cflpSolve solveOpts) cflps
+  solvedCflps <- mapM (cflpSolve solveOpts . snd) cflps
 
   -- Output
-  mapM_ (cflpOutput outOpts) solvedCflps
+  mapM_ (cflpOutput outOpts) $ zip (map fst cflps) solvedCflps
 
   when (benchFile outOpts) $
     cflpBench (fmap sequence (sequenceA solvedCflps))
 
+
 -- | Input Layer
-cflpInput :: CflpInputOptions -> IO [CFLP]
+data CflpGeneratorOptions =
+  CflpGenFile String
+  | CflpGen1 String Int Int
+  | CflpGen2 Int Int (Double, Double) (Double, Double) (Double, Double) -- n m u_i d_j f_i
+
+instance Show CflpGeneratorOptions where
+  show (CflpGen1 fileName n m)
+    = "file: " ++ fileName
+    ++ " n: " ++ show n
+    ++ " m: " ++ show m
+  show (CflpGen2 n m ui dj fi)
+    = "n: " ++ show n
+    ++ " m: " ++ show m
+    ++ " ui: " ++ show ui
+    ++ " dj: " ++ show dj
+    ++ " fi: " ++ show fi
+
+cflpInput :: CflpInputOptions -> IO [(CflpGeneratorOptions, CFLP)]
 cflpInput opts = do
   case inputFileName opts of
     Just fileName -> do
@@ -442,7 +460,7 @@ cflpInput opts = do
         Right cflp'' -> do
           if not $ isFeasible cflp''
             then error "CFLP not feasible"
-            else return [cflp'']
+            else return [(CflpGenFile fileName, cflp'')]
     Nothing -> do
       case inputGenerator opts of
         Just generator -> do
@@ -456,14 +474,27 @@ cflpInput opts = do
               let name = iso8601 currentTime
 
               cflp <- getFeasibleCFLP $ getTestCaseData name testCase n m
-              return [cflp]
-            -- ("gen-bench" : fileName : testCase : maxDuration' : stepSize' : numReps' : []) -> do
-            --   let maxDuration = read maxDuration'
-            --       stepSize = read stepSize'
-            --       numReps = read numReps'
-            --   genBench fileName testCase maxDuration stepSize numReps
+              return [(CflpGen1 testCase n m, cflp)]
+
+            ("vary-ratio" : []) -> do
+              let name = "cflp"
+
+              let n = 20
+                  m = 2
+
+              let cflpOpts = [ (n, m, (fi - s, fi + s), (ui - s, ui + s), (dj - s, dj + s))
+                             | fi <- [10.0, 20.0 .. 100.0]
+                             , ui <- [10.0, 20.0 .. 100.0]
+                             , dj <- [10.0, 20.0 .. 100.0]
+                             , s <- [0.0, 5.0]]
+
+              cflps <- mapM (uncurry5 (randomEvenDist4CFLP name)) cflpOpts
+              let cflps' = zip (map (uncurry5 CflpGen2) cflpOpts) cflps
+              return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
             _  -> error "Illegal arguments"
         Nothing -> return []
+
+uncurry5 f (a, b, c, d, e) = f a b c d e
 
 -- | Solve Layer
 data Pair a = Pair a a
@@ -505,8 +536,8 @@ data SolvedCflp = SolvedCflp
   , cflpTime :: Double
   } deriving (Show)
 
-cflpOutput :: CflpOutputOptions -> Pair (Maybe SolvedCflp) -> IO ()
-cflpOutput opts (Pair exact approx) = do
+cflpOutput :: CflpOutputOptions -> (CflpGeneratorOptions, Pair (Maybe SolvedCflp)) -> IO ()
+cflpOutput opts (genOpts, Pair exact approx) = do
 
   currentTime' <- getCurrentTime
   let currentTime = iso8601 currentTime'
@@ -538,9 +569,10 @@ cflpOutput opts (Pair exact approx) = do
      (Just (SolvedCflp exact exactObj exactTime), Just (SolvedCflp approx approxObj approxTime)) -> do
        let exactOpen = getOpenFacilityCount $ facilities exact
            approxOpen = getOpenFacilityCount $ facilities approx
-       writeFile (dirName </> "stats.txt") $ printf ("exact: %.15f, approx: %.15f, ratio: %.15f, "
+       writeFile (dirName </> "stats.txt") $ printf ("%s exact: %.15f, approx: %.15f, ratio: %.15f, "
                                                      ++ "exactOpen: %d, approxOpen: %d, "
                                                      ++ "exactTime: %.15f, approxTime: %.15f\n")
+                                               (show genOpts)
                                                exactObj approxObj (approxObj/exactObj)
                                                exactOpen approxOpen
                                                exactTime approxTime
@@ -629,6 +661,14 @@ randomEvenDist3CFLP name n m fi ui dj =
   do fs <- randomFacilities n (0.0, fi) (0.0, ui) (Position 0.0 0.0, Position 100.0 100.0)
      cs <- randomClients m (50.0, dj) (Position 0.0 0.0, Position 100.0 100.0)
      return $ CFLP name fs cs (locationDistances fs cs)
+
+randomEvenDist4CFLP :: String -> Int -> Int -> (Double, Double) -> (Double, Double) -> (Double, Double) -> IO CFLP
+randomEvenDist4CFLP name n m fi ui dj = do
+  let start = Position   0.0   0.0
+      end   = Position 100.0 100.0
+  fs <- randomFacilities n fi ui (start, end)
+  cs <- randomClients m dj (start, end)
+  return $ CFLP name fs cs (locationDistances fs cs)
 
 getFeasibleRandomCFLP name n m = getFeasibleCFLP $ randomEvenDist2CFLP name n m
 
