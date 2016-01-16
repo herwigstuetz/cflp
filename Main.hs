@@ -50,8 +50,8 @@ import           AP
 import           CFLP
 import           MIP
 
-catchOutput :: IO a -> IO (a, String)
-catchOutput f = do
+catchOutput' :: IO a -> IO (a, String)
+catchOutput' f = do
   tmpd <- getTemporaryDirectory
   !(tmpf, tmph) <- openTempFile tmpd "haskell_stdout"
   !stdout_dup <- hDuplicate stdout
@@ -63,6 +63,11 @@ catchOutput f = do
   !str <- readFile tmpf
   removeFile tmpf
   return (result, str)
+
+catchOutput :: IO a -> IO (a, String)
+catchOutput f = do
+  result <- f
+  return (result, "")
 
 usage :: IO ()
 usage = putStrLn "write n m filename|read filename|read-mip filename|run n m|bench n m"
