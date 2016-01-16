@@ -530,10 +530,15 @@ cflpOutput opts (Pair exact approx) = do
 
   when (statsFile opts) $ do
     case (exact, approx) of
-     (Just (SolvedCflp _ exactObj exactTime), Just (SolvedCflp _ approxObj approxTime)) ->
+     (Just (SolvedCflp exact exactObj exactTime), Just (SolvedCflp approx approxObj approxTime)) -> do
+       let exactOpen = getOpenFacilityCount $ facilities exact
+           approxOpen = getOpenFacilityCount $ facilities approx
        writeFile (dirName </> "stats.txt") $ printf ("exact: %.15f, approx: %.15f, ratio: %.15f, "
+                                                     ++ "exactOpen: %d, approxOpen: %d, "
                                                      ++ "exactTime: %.15f, approxTime: %.15f\n")
-                                               exactObj approxObj (approxObj/exactObj) exactTime approxTime
+                                               exactObj approxObj (approxObj/exactObj)
+                                               exactOpen approxOpen
+                                               exactTime approxTime
      _ -> return ()
 
 cflpBench :: Pair (Maybe [SolvedCflp]) -> IO ()

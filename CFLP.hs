@@ -181,6 +181,9 @@ showCFLPSolution cflp = (show . length . facilities $ cflp) ++ "\n" ++
                         (showClientsSol . clients $ cflp) ++ "\n" ++
                         (showDistancesSol . distances $ cflp) ++ "\n"
 
+getOpenFacilities = filter (\i -> y i > 0.9)
+getOpenFacilityCount = length . getOpenFacilities
+
 -- | ShowS implementation
 
 showsWords :: (Show a) => [a] -> ShowS
