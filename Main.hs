@@ -430,8 +430,8 @@ execCflp (CflpOptions inOpts solveOpts outOpts) = do
   -- Solve and Output fused
   mapM_ (\ (genOpts, cflp) -> cflpSolve solveOpts cflp >>= \ sol -> (cflpOutput outOpts (genOpts, sol)) ) cflps
 
-  when (benchFile outOpts) $
-    cflpBench (fmap sequence (sequenceA solvedCflps))
+--  when (benchFile outOpts) $
+--    cflpBench (fmap sequence (sequenceA solvedCflps))
 
 
 
