@@ -184,6 +184,18 @@ showCFLPSolution cflp = (show . length . facilities $ cflp) ++ "\n" ++
 getOpenFacilities = filter (\i -> y i > 0.9)
 getOpenFacilityCount = length . getOpenFacilities
 
+appendCflps :: CFLP -> CFLP -> CFLP
+appendCflps cflp1 cflp2 = CFLP (cflpName cflp1) fs cs ds
+  where n = length $ facilities cflp1
+        m = length $ clients cflp1
+
+        shiftFacility (Facility id f u y pos) = Facility (id + n) f u y pos
+        shiftClient   (Client id d pos)       = Client   (id + m) d pos
+
+        fs = (facilities cflp1) ++ (map shiftFacility $ facilities cflp2)
+        cs = (clients cflp1) ++ (map shiftClient $ clients cflp2)
+        ds = locationDistances fs cs
+
 -- | ShowS implementation
 
 showsWords :: (Show a) => [a] -> ShowS
