@@ -577,10 +577,10 @@ cflpOutput opts (genOpts, Pair exact approx) = do
      (Just (SolvedCflp exact exactObj exactTime), Just (SolvedCflp approx approxObj approxTime)) -> do
        let exactOpen = getOpenFacilityCount $ facilities exact
            approxOpen = getOpenFacilityCount $ facilities approx
-       writeFile (dirName </> "stats.txt") $ printf ("%s exact: %.15f, approx: %.15f, ratio: %.15f, "
+       writeFile (dirName </> "stats.txt") $ printf ("%sexact: %.15f, approx: %.15f, ratio: %.15f, "
                                                      ++ "exactOpen: %d, approxOpen: %d, "
                                                      ++ "exactTime: %.15f, approxTime: %.15f\n")
-                                               (show genOpts)
+                                               ((show genOpts) ++ (if ((show genOpts) /= "") then ", " else ""))
                                                exactObj approxObj (approxObj/exactObj)
                                                exactOpen approxOpen
                                                exactTime approxTime
