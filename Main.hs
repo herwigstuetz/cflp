@@ -484,19 +484,64 @@ cflpInput opts = do
               cflp <- getFeasibleCFLP $ getTestCaseData name testCase n m
               return [(CflpGen1 testCase n m, cflp)]
 
-            ("vary-ratio" : []) -> do
+            ("vary-ratio-1" : []) -> do
               let name = "cflp"
 
-              let n = 20
-                  m = 2
+              let n = 100
+                  m = 10
 
               let cflpOpts = [ (n, m, (fi - s, fi + s), (ui - s, ui + s), (dj - s, dj + s))
                              | fi <- [10.0, 20.0 .. 100.0]
                              , ui <- [10.0, 20.0 .. 100.0]
                              , dj <- [10.0, 20.0 .. 100.0]
-                             , s <- [0.0, 5.0]]
+                             , s <- [0.0]]
 
               cflps <- mapM (uncurry5 (randomEvenDist4CFLP name)) cflpOpts
+              let cflps' = zip (map (uncurry5 CflpGen2) cflpOpts) cflps
+              return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
+            ("vary-ratio-2" : []) -> do
+              let name = "cflp"
+
+              let n = 100
+                  m = 10
+
+              let cflpOpts = [ (n, m, (fi - s, fi + s), (ui - s, ui + s), (dj - s, dj + s))
+                             | fi <- [10.0, 20.0 .. 100.0]
+                             , ui <- [10.0, 20.0 .. 100.0]
+                             , dj <- [10.0, 20.0 .. 100.0]
+                             , s <- [5.0]]
+
+              cflps <- mapM (uncurry5 (randomEvenDist4CFLP name)) cflpOpts
+              let cflps' = zip (map (uncurry5 CflpGen2) cflpOpts) cflps
+              return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
+            ("vary-ratio-3" : []) -> do
+              let name = "cflp"
+
+              let n = 100
+                  m = 10
+
+              let cflpOpts = [ (n, m, (0.0, fi), (0.0, ui), (0.0, dj))
+                             | fi <- [10.0, 20.0 .. 100.0]
+                             , ui <- [10.0, 20.0 .. 100.0]
+                             , dj <- [10.0, 20.0 .. 100.0]]
+
+              cflps <- mapM (uncurry5 (randomEvenDist4CFLP name)) cflpOpts
+              let cflps' = zip (map (uncurry5 CflpGen2) cflpOpts) cflps
+              return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
+            ("vary-ratio-4" : []) -> do
+              let name = "cflp"
+
+              let start = Position    0.0  0.0
+                  end   = Position 100.0 100.0
+
+              let cflpOpts = [ (n, m, (0.0, fi), (0.0, ui), (0.0, dj))
+                             | n <- [10, 20 .. 100]
+                             , m <- [10, 20 .. 100]
+                             , fi <- [10.0, 20.0 .. 100.0]
+                             , ui <- [10.0, 20.0 .. 100.0]
+                             , dj <- [10.0, 20.0 .. 100.0]]
+
+              cflps <- mapM (uncurry5 (randomEvenDist5CFLP name start end)) cflpOpts
               let cflps' = zip (map (uncurry5 CflpGen2) cflpOpts) cflps
               return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
             _  -> error "Illegal arguments"
@@ -674,6 +719,12 @@ randomEvenDist4CFLP :: String -> Int -> Int -> (Double, Double) -> (Double, Doub
 randomEvenDist4CFLP name n m fi ui dj = do
   let start = Position   0.0   0.0
       end   = Position 100.0 100.0
+  fs <- randomFacilities n fi ui (start, end)
+  cs <- randomClients m dj (start, end)
+  return $ CFLP name fs cs (locationDistances fs cs)
+
+randomEvenDist5CFLP :: String -> Position -> Position -> Int -> Int -> (Double, Double) -> (Double, Double) -> (Double, Double) -> IO CFLP
+randomEvenDist5CFLP name start end n m fi ui dj = do
   fs <- randomFacilities n fi ui (start, end)
   cs <- randomClients m dj (start, end)
   return $ CFLP name fs cs (locationDistances fs cs)
