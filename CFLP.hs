@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE FlexibleContexts #-}
 
@@ -184,17 +186,35 @@ showCFLPSolution cflp = (show . length . facilities $ cflp) ++ "\n" ++
 getOpenFacilities = filter (\i -> y i > 0.9)
 getOpenFacilityCount = length . getOpenFacilities
 
+appendFacilities :: Facilities -> Facilities -> Facilities
+appendFacilities fs1 fs2 = fs1 ++ (map shiftFacility fs2)
+  where n = length fs1
+        shiftFacility (Facility id f u y pos) = Facility (id + n) f u y pos
+
+instance Monoid Facilities where
+  mempty  = []
+  mappend = appendFacilities
+
+appendClients :: Clients -> Clients -> Clients
+appendClients cs1 cs2 = cs1 ++ (map shiftClient cs2)
+  where m = length cs1
+        shiftClient (Client id d pos) = Client (id + m) d pos
+
+instance Monoid Clients where
+  mempty  = []
+  mappend = appendClients
+
 appendCflps :: CFLP -> CFLP -> CFLP
 appendCflps cflp1 cflp2 = CFLP (cflpName cflp1) fs cs ds
-  where n = length $ facilities cflp1
-        m = length $ clients cflp1
-
-        shiftFacility (Facility id f u y pos) = Facility (id + n) f u y pos
-        shiftClient   (Client id d pos)       = Client   (id + m) d pos
-
-        fs = (facilities cflp1) ++ (map shiftFacility $ facilities cflp2)
-        cs = (clients cflp1) ++ (map shiftClient $ clients cflp2)
+  where fs = appendFacilities (facilities cflp1) (facilities cflp2)
+        cs = appendClients (clients cflp1) (clients cflp2)
         ds = locationDistances fs cs
+
+instance Monoid CFLP where
+  mempty  = CFLP "" [] [] (array ((0,0),((-1),(-1))) [])
+  mappend cflp1 (CFLP "" [] [] _) = cflp1
+  mappend (CFLP "" [] [] _) cflp2 = cflp2
+  mappend cflp1 cflp2 = appendCflps cflp1 cflp2
 
 -- | ShowS implementation
 
