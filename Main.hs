@@ -11,7 +11,7 @@ import           Data.Array
 import           Data.Function
 import           Data.List                 (find, group, intercalate, maximumBy,
                                             minimumBy, nub, sort, sortBy,
-                                            splitAt, zipWith4, zipWith5, (\\))
+                                            splitAt, zip4, zipWith4, zipWith5, (\\))
 import qualified Data.Map.Strict as Map
 import           Data.Maybe
 import qualified Data.Set as Set
