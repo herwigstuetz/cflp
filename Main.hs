@@ -15,6 +15,7 @@ import           Data.List                 (find, group, intercalate, maximumBy,
 import qualified Data.Map.Strict as Map
 import           Data.Maybe
 import qualified Data.Set as Set
+import           Data.String.Utils (replace)
 import           Data.Time.Clock
 import           Data.Time.Format
 import qualified Data.Vector as V
@@ -627,7 +628,7 @@ cflpOutput opts (genOpts, Pair exact approx) = do
   currentTime' <- getCurrentTime
   let currentTime = iso8601 currentTime'
       dirName' = fromMaybe "." $ outputFileName opts
-      dirName = if dirName' == "%t" then currentTime else dirName'
+      dirName = replace "%t" currentTime dirName'
 
   when ((outputFile opts) || (plotFile opts)) $ do
     createDirectoryIfMissing True dirName
