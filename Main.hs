@@ -555,10 +555,31 @@ cflpInput opts = do
               cflps <- mapM (uncurry5 (randomEvenDist5CFLP name start end)) cflpOpts
               let cflps' = zip (map (uncurry5 CflpGen2) cflpOpts) cflps
               return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
+            ("vary-ratio-5" : []) -> do
+              let name = "cflp"
+
+              let n = 20
+                  m = 5
+
+              let start = Position    0.0  0.0
+                  end   = Position 100.0 100.0
+
+              let cflpOpts = [ (n, m, [(0.0, 1000.0*fi1), (0.0, fi2)], [(0.0, ui1), (0.0, ui2)], (0.0, dj))
+                             | k <- [1]
+                             , fi1 <- [10.0, 20.0 .. 100.0]
+                             , fi2 <- [10.0, 20.0 .. 100.0]
+                             , ui1 <- [10.0, 20.0 .. 100.0]
+                             , ui2 <- [10.0, 20.0 .. 100.0]
+                             , dj <- [10.0, 20.0 .. 100.0]]
+
+              cflps <- mapM (uncurry5 (randomEvenDist6CFLP name start end)) cflpOpts
+              let cflps' = zip (map (uncurry5 CflpGen3) cflpOpts) cflps
+              return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
             _  -> error "Illegal arguments"
         Nothing -> return []
 
-uncurry5 f (a, b, c, d, e) = f a b c d e
+uncurry5 f (a1, a2, a3, a4, a5)     = f a1 a2 a3 a4 a5
+uncurry6 f (a1, a2, a3, a4, a5, a6) = f a1 a2 a3 a4 a5 a6
 
 -- | Solve Layer
 data Pair a = Pair a a
@@ -739,6 +760,39 @@ randomEvenDist5CFLP name start end n m fi ui dj = do
   fs <- randomFacilities n fi ui (start, end)
   cs <- randomClients m dj (start, end)
   return $ CFLP name fs cs (locationDistances fs cs)
+
+
+divPos :: Integral a => Position -> Position -> a -> [Position]
+divPos start end k =
+  zipWith Position
+    [posX start, (posX end - posX start) / fromIntegral k .. posX end]
+    [posY start, (posY end - posY start) / fromIntegral k .. posY end]
+
+--  +-------------------+
+--  |             f f f |
+--  |              f f  |
+--  |             f f f |
+--  |       f f f       |
+--  |        f f        |
+--  |       f f f       |
+--  | c c c             |
+--  |  c c              |
+--  | c c c             |
+--  +-------------------+
+randomEvenDist6CFLP :: String -> Position -> Position -> Int -> Int -> [(Double, Double)] -> [(Double, Double)] -> (Double, Double) -> IO CFLP
+randomEvenDist6CFLP name start end n m fi ui dj = do
+  let nBlocks = (min (length fi) (length ui)) + 1 -- + 1 for client block
+      (step1 : step2 : steps) = divPos start end nBlocks
+
+  fs' <- mapM (\(fi, ui, start, end) -> randomFacilities n fi ui (start, end))
+         $ zip4 fi ui (step2 : steps) steps
+  cs <- randomClients m dj (step1, step2)
+
+  let fs = foldl appendFacilities [] fs'
+
+  return $ CFLP name fs cs (locationDistances fs cs)
+
+
 
 getFeasibleRandomCFLP name n m = getFeasibleCFLP $ randomEvenDist2CFLP name n m
 
