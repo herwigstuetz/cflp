@@ -442,6 +442,7 @@ data CflpGeneratorOptions =
   CflpGenFile String
   | CflpGen1 String Int Int
   | CflpGen2 Int Int (Double, Double) (Double, Double) (Double, Double) -- n m u_i d_j f_i
+  | CflpGen3 Int Int [(Double, Double)] [(Double, Double)] (Double, Double) -- n m u_i f_i d_j
 
 instance Show CflpGeneratorOptions where
   show (CflpGen1 fileName n m)
@@ -454,6 +455,12 @@ instance Show CflpGeneratorOptions where
     ++ ", ui: " ++ show ui
     ++ ", dj: " ++ show dj
     ++ ", fi: " ++ show fi
+  show (CflpGen3 n m uis fis dj)
+    = "n: " ++ show n
+    ++ ", m: " ++ show m
+    ++ (concat $ map (\(i, u) -> ", ui" ++ i ++ ": " ++ u) $ zip (map show [1..]) (map show uis))
+    ++ (concat $ map (\(i, u) -> ", fi" ++ i ++ ": " ++ u) $ zip (map show [1..]) (map show fis))
+    ++ ", dj: " ++ show dj
 
 cflpInput :: CflpInputOptions -> IO [(CflpGeneratorOptions, CFLP)]
 cflpInput opts = do
