@@ -442,26 +442,43 @@ execCflp (CflpOptions inOpts solveOpts outOpts) = do
 data CflpGeneratorOptions =
   CflpGenFile String
   | CflpGen1 String Int Int
-  | CflpGen2 Int Int (Double, Double) (Double, Double) (Double, Double) -- n m u_i d_j f_i
+--  | CflpGen2 Int Int (Double, Double) (Double, Double) (Double, Double) -- n m u_i d_j f_i
   | CflpGen3 Int Int [(Double, Double)] [(Double, Double)] (Double, Double) -- n m u_i f_i d_j
+  | CflpGen4 Int Int Double (Double, Double) Double -- n m f_i u_i d_j
+  | CflpGen5 Position Position Int Int Double (Double, Double) Double -- start end n m f_i u_i d_j
 
 instance Show CflpGeneratorOptions where
   show (CflpGen1 fileName n m)
     = "file: " ++ fileName
     ++ ", n: " ++ show n
     ++ ", m: " ++ show m
-  show (CflpGen2 n m ui dj fi)
-    = "n: " ++ show n
-    ++ ", m: " ++ show m
-    ++ ", ui: " ++ show ui
-    ++ ", dj: " ++ show dj
-    ++ ", fi: " ++ show fi
+  -- show (CflpGen2 n m ui dj fi)
+  --   = "n: " ++ show n
+  --   ++ ", m: " ++ show m
+  --   ++ ", ui: " ++ show ui
+  --   ++ ", dj: " ++ show dj
+  --   ++ ", fi: " ++ show fi
   show (CflpGen3 n m uis fis dj)
     = "n: " ++ show n
     ++ ", m: " ++ show m
     ++ (concat $ map (\(i, u) -> ", ui" ++ i ++ ": " ++ u) $ zip (map show [1..]) (map show uis))
     ++ (concat $ map (\(i, u) -> ", fi" ++ i ++ ": " ++ u) $ zip (map show [1..]) (map show fis))
     ++ ", dj: " ++ show dj
+  show (CflpGen4 n m ui dj fi)
+    = "n: " ++ show n
+    ++ ", m: " ++ show m
+    ++ ", fi: " ++ show fi
+    ++ ", ui: " ++ show ui
+    ++ ", dj: " ++ show dj
+  show (CflpGen5 start end n m ui dj fi)
+    = "start: " ++ show start
+    ++ ", end: " ++ show end
+    ++ ", n: " ++ show n
+    ++ ", m: " ++ show m
+    ++ ", fi: " ++ show fi
+    ++ ", ui: " ++ show ui
+    ++ ", dj: " ++ show dj
+
 
 cflpInput :: CflpInputOptions -> IO [(CflpGeneratorOptions, CFLP)]
 cflpInput opts = do
@@ -495,92 +512,91 @@ cflpInput opts = do
             ("vary-ratio-1" : []) -> do
               let name = "cflp"
 
-              let n = 100
-                  m = 10
+              let n = 20
+                  m = 5
 
-              let cflpOpts = [ (n, m, (fi - s, fi + s), (ui - s, ui + s), (dj - s, dj + s))
+              let cflpOpts = [ (n, m, fi, (ui - s, ui + s), dj)
                              | k <- [1 .. 5]
-                             , fi <- [10.0, 20.0 .. 100.0]
-                             , ui <- [10.0, 20.0 .. 100.0]
-                             , dj <- [10.0, 20.0 .. 100.0]
+                             , fi <- [1.0, 2.0 .. 10.0]
+                             , ui <- [1.0, 2.0 .. 10.0]
+                             , dj <- [1.0]
                              , s <- [0.0]]
 
               cflps <- mapM (uncurry5 (randomEvenDist4CFLP name)) cflpOpts
-              let cflps' = zip (map (uncurry5 CflpGen2) cflpOpts) cflps
+              let cflps' = zip (map (uncurry5 CflpGen4) cflpOpts) cflps
               return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
             ("vary-ratio-2" : []) -> do
-              let name = "cflp"
-
-              let n = 100
-                  m = 10
-
-              let cflpOpts = [ (n, m, (fi - s, fi + s), (ui - s, ui + s), (dj - s, dj + s))
-                             | k <- [1 .. 5]
-                             , fi <- [10.0, 20.0 .. 100.0]
-                             , ui <- [10.0, 20.0 .. 100.0]
-                             , dj <- [10.0, 20.0 .. 100.0]
-                             , s <- [5.0]]
-
-              cflps <- mapM (uncurry5 (randomEvenDist4CFLP name)) cflpOpts
-              let cflps' = zip (map (uncurry5 CflpGen2) cflpOpts) cflps
-              return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
-            ("vary-ratio-3" : []) -> do
-              let name = "cflp"
-
-              let n = 100
-                  m = 10
-
-              let cflpOpts = [ (n, m, (0.0, fi), (0.0, ui), (0.0, dj))
-                             | k <- [1 .. 5]
-                             , fi <- [10.0, 20.0 .. 100.0]
-                             , ui <- [10.0, 20.0 .. 100.0]
-                             , dj <- [10.0, 20.0 .. 100.0]]
-
-              cflps <- mapM (uncurry5 (randomEvenDist4CFLP name)) cflpOpts
-              let cflps' = zip (map (uncurry5 CflpGen2) cflpOpts) cflps
-              return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
-            ("vary-ratio-4" : []) -> do
-              let name = "cflp"
-
-              let start = Position    0.0  0.0
-                  end   = Position 100.0 100.0
-
-              let cflpOpts = [ (n, m, (0.0, fi), (0.0, ui), (0.0, dj))
-                             | k <- [1 .. 5]
-                             , n <- [10, 20 .. 100]
-                             , m <- [10, 20 .. 100]
-                             , fi <- [10.0, 20.0 .. 100.0]
-                             , ui <- [10.0, 20.0 .. 100.0]
-                             , dj <- [10.0, 20.0 .. 100.0]]
-
-              cflps <- mapM (uncurry5 (randomEvenDist5CFLP name start end)) cflpOpts
-              let cflps' = zip (map (uncurry5 CflpGen2) cflpOpts) cflps
-              return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
-            ("vary-ratio-5" : []) -> do
               let name = "cflp"
 
               let n = 20
                   m = 5
 
-              let start = Position    0.0  0.0
-                  end   = Position 100.0 100.0
+              let cflpOpts = [ (n, m, fi, (ui - s, ui + s), dj)
+                             | k <- [1 .. 5]
+                             , fi <- [1.0, 2.0 .. 10.0]
+                             , ui <- [3.0, 4.0 .. 10.0]
+                             , dj <- [1.0]
+                             , s <- [2.0]]
 
-              let cflpOpts = [ (n, m, [(0.0, 1000.0*fi1), (0.0, fi2)], [(0.0, ui1), (0.0, ui2)], (0.0, dj))
-                             | k <- [1]
-                             , fi1 <- [10.0, 20.0 .. 100.0]
-                             , fi2 <- [10.0, 20.0 .. 100.0]
-                             , ui1 <- [10.0, 20.0 .. 100.0]
-                             , ui2 <- [10.0, 20.0 .. 100.0]
-                             , dj <- [10.0, 20.0 .. 100.0]]
-
-              cflps <- mapM (uncurry5 (randomEvenDist6CFLP name start end)) cflpOpts
-              let cflps' = zip (map (uncurry5 CflpGen3) cflpOpts) cflps
+              cflps <- mapM (uncurry5 (randomEvenDist4CFLP name)) cflpOpts
+              let cflps' = zip (map (uncurry5 CflpGen4) cflpOpts) cflps
               return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
+            ("vary-ratio-3" : []) -> do
+              let name = "cflp"
+
+              let n = 20
+                  m = 5
+
+              let cflpOpts = [ (n, m, fi, (0.0, ui), dj)
+                             | k <- [1 .. 5]
+                             , fi <- [1.0, 2.0 .. 10.0]
+                             , ui <- [3.0, 4.0 .. 10.0]
+                             , dj <- [1.0]]
+
+              cflps <- mapM (uncurry5 (randomEvenDist4CFLP name)) cflpOpts
+              let cflps' = zip (map (uncurry5 CflpGen4) cflpOpts) cflps
+              return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
+            ("vary-ratio-4" : []) -> do
+              let name = "cflp"
+
+              let cflpOpts = [ ((Position 0.0 0.0), (Position e e), n, m, fi, (0.0, ui), dj)
+                             | k <- [1 .. 5]
+                             , e <- [10.0, 20.0 .. 100.0]
+                             , n <- [5, 10 .. 20]
+                             , m <- [5, 10 .. 20]
+                             , fi <- [1.0, 2.0 .. 10.0]
+                             , ui <- [3.0, 4.0 .. 10.0]
+                             , dj <- [1.0]]
+
+              cflps <- mapM (uncurry7 (randomEvenDist5CFLP name)) cflpOpts
+              let cflps' = zip (map (uncurry7 CflpGen5) cflpOpts) cflps
+              return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
+            -- ("vary-ratio-5" : []) -> do
+            --   let name = "cflp"
+
+            --   let n = 20
+            --       m = 5
+
+            --   let start = Position    0.0  0.0
+            --       end   = Position 100.0 100.0
+
+            --   let cflpOpts = [ (n, m, [(0.0, 1000.0*fi1), (0.0, fi2)], [(0.0, ui1), (0.0, ui2)], (0.0, dj))
+            --                  | k <- [1]
+            --                  , fi1 <- [10.0, 20.0 .. 100.0]
+            --                  , fi2 <- [10.0, 20.0 .. 100.0]
+            --                  , ui1 <- [10.0, 20.0 .. 100.0]
+            --                  , ui2 <- [10.0, 20.0 .. 100.0]
+            --                  , dj <- [10.0, 20.0 .. 100.0]]
+
+            --   cflps <- mapM (uncurry5 (randomEvenDist6CFLP name start end)) cflpOpts
+            --   let cflps' = zip (map (uncurry5 CflpGen3) cflpOpts) cflps
+            --   return $ filter (\ (_, cflp) -> isFeasible cflp) cflps'
             _  -> error "Illegal arguments"
         Nothing -> return []
 
-uncurry5 f (a1, a2, a3, a4, a5)     = f a1 a2 a3 a4 a5
-uncurry6 f (a1, a2, a3, a4, a5, a6) = f a1 a2 a3 a4 a5 a6
+uncurry5 f (a1, a2, a3, a4, a5)         = f a1 a2 a3 a4 a5
+uncurry6 f (a1, a2, a3, a4, a5, a6)     = f a1 a2 a3 a4 a5 a6
+uncurry7 f (a1, a2, a3, a4, a5, a6, a7) = f a1 a2 a3 a4 a5 a6 a7
 
 -- | Solve Layer
 data Pair a = Pair a a
@@ -748,19 +764,40 @@ randomEvenDist3CFLP name n m fi ui dj =
      cs <- randomClients m (50.0, dj) (Position 0.0 0.0, Position 100.0 100.0)
      return $ CFLP name fs cs (locationDistances fs cs)
 
-randomEvenDist4CFLP :: String -> Int -> Int -> (Double, Double) -> (Double, Double) -> (Double, Double) -> IO CFLP
+roundFacilityCapacities :: Facilities -> Facilities
+roundFacilityCapacities = map (\f -> f { u = fromIntegral $ round (u f) })
+
+randomEvenDist4CFLP
+  :: String           -- | name of the problem
+  -> Int              -- | number of facilities
+  -> Int              -- | number of clients
+  -> Double           -- | range of opening costs
+  -> (Double, Double) -- | range of capacity
+  -> Double           -- | range of demand
+  -> IO CFLP          -- | random problem with the
+  -- specified parameter in (0,0) - (100,100)
 randomEvenDist4CFLP name n m fi ui dj = do
   let start = Position   0.0   0.0
       end   = Position 100.0 100.0
-  fs <- randomFacilities n fi ui (start, end)
-  cs <- randomClients m dj (start, end)
-  return $ CFLP name fs cs (locationDistances fs cs)
+  fs <- randomFacilities n (fi, fi) ui (start, end)
+  cs <- randomClients m (dj, dj) (start, end)
+  return $ CFLP name (roundFacilityCapacities fs) cs (locationDistances fs cs)
 
-randomEvenDist5CFLP :: String -> Position -> Position -> Int -> Int -> (Double, Double) -> (Double, Double) -> (Double, Double) -> IO CFLP
+randomEvenDist5CFLP
+  :: String           -- | name of the problem
+  -> Position         -- | geometry start point
+  -> Position         -- | geometry end point
+  -> Int              -- | number of facilities
+  -> Int              -- | number of clients
+  -> Double           -- | range of opening costs
+  -> (Double, Double) -- | range of capacity
+  -> Double           -- | range of demand
+  -> IO CFLP          -- | random problem with the
+  -- specified parameter in (0,0) - (100,100)
 randomEvenDist5CFLP name start end n m fi ui dj = do
-  fs <- randomFacilities n fi ui (start, end)
-  cs <- randomClients m dj (start, end)
-  return $ CFLP name fs cs (locationDistances fs cs)
+  fs <- randomFacilities n (fi, fi) ui (start, end)
+  cs <- randomClients m (dj, dj) (start, end)
+  return $ CFLP name (roundFacilityCapacities fs) cs (locationDistances fs cs)
 
 
 divPos :: Integral a => Position -> Position -> a -> [Position]
