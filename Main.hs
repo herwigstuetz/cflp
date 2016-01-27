@@ -470,7 +470,7 @@ instance Show CflpGeneratorOptions where
     ++ ", fi: " ++ show fi
     ++ ", ui: " ++ show ui
     ++ ", dj: " ++ show dj
-  show (CflpGen5 start end n m ui dj fi)
+  show (CflpGen5 start end n m fi ui dj)
     = "start: " ++ show start
     ++ ", end: " ++ show end
     ++ ", n: " ++ show n
