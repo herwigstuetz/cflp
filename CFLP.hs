@@ -512,10 +512,10 @@ ctr2 :: Int -> Int -> [[(Int, Double)]]
 ctr2 n m = [ [(yIdx n m i, -1.0), (xIdx n m i j, 1.0)] | i <- [0..n-1], j <- [0..m-1] ]
 
 ctr3 :: Facilities -> Clients -> Int -> Int -> [[(Int, Double)]]
-ctr3 fs cs n m = [ [(xIdx n m i j, dj)
+ctr3 fs cs n m = [[(xIdx n m i j, dj)
                   | j <- [0..m-1], let Just dj = getDemandById cs j ]
                   ++ [(yIdx n m i, -ui)]
-                | i <- [0..n-1], let Just ui = getCapacityById fs i]
+                 | i <- [0..n-1], let Just ui = getCapacityById fs i]
 
 fromConstraints :: [[(Int, Double)]] -> [(Row, Col, Double)]
 fromConstraints l = map (\(r,c,x) -> (Row r, Col c, x)) (concatMap f $ zip [0..] l)
