@@ -494,6 +494,8 @@ instance Show CflpGeneratorOptions where
     ++ ", fi: " ++ show fi
     ++ ", ui: " ++ show ui
     ++ ", dj: " ++ show dj
+  show _ = ""
+
 
 cflpFileParser ::
   Stream s m Char
