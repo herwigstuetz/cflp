@@ -323,8 +323,14 @@ main' = do
 
 -- | Main
 
+data CflpInputFileType
+  = CflpInputFileWithDistances
+  | CflpInputFileWithPositions
+    deriving (Show, Eq)
+
 data CflpInputOptions = CflpInputOptions
   { inputFileName  :: Maybe FilePath
+  , inputFileType  :: Maybe String
   , inputGenerator :: Maybe String
   } deriving (Show)
 
@@ -360,6 +366,11 @@ data CflpOptions = CflpOptions
 --cflpInputOptions :: Parser CflpInputOptions
 --cflpInputOptions = subparser
 
+fromString :: String -> CflpInputFileType
+fromString "withDistances" = CflpInputFileWithDistances
+fromString "withPositions" = CflpInputFileWithPositions
+fromString _               = CflpInputFileWithPositions
+
 cflpOptions :: Parser CflpOptions
 cflpOptions =
   CflpOptions
@@ -369,6 +380,11 @@ cflpOptions =
                <> short 'i'
                <> metavar "INPUTFILE"
                <> help "Read problem from INPUTFILE" ))
+       <*> ( optional $ strOption
+             ( long "inputtype"
+               <> short 't'
+               <> metavar "INPUTTYPE"
+               <> help "The type of the input file. Either withDistances or withPositions"))
        <*> ( optional $ strOption
              ( long "inputgenerator"
                <> short 'g'
@@ -479,13 +495,20 @@ instance Show CflpGeneratorOptions where
     ++ ", ui: " ++ show ui
     ++ ", dj: " ++ show dj
 
+cflpFileParser ::
+  Stream s m Char
+  => CflpInputFileType
+  -> ParsecT s u m CFLP
+cflpFileParser CflpInputFileWithPositions = cflpFileWithPositions
+cflpFileParser CflpInputFileWithDistances = cflpFileWithDistances
 
 cflpInput :: CflpInputOptions -> IO [(CflpGeneratorOptions, CFLP)]
 cflpInput opts = do
   case inputFileName opts of
     Just fileName -> do
       cflp <- readFile fileName
-      let cflp' = parse cflpFile (dropExtension fileName) cflp
+      let fileType = fromString $ fromMaybe "" $ inputFileType opts
+      let cflp' = parse (cflpFileParser fileType) (dropExtension fileName) cflp
       case cflp' of
         Left msg -> do
           print msg
