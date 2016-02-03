@@ -465,7 +465,7 @@ data CflpGeneratorOptions =
 
 instance Show CflpGeneratorOptions where
   show (CflpGenFile fileName)
-    = "file: " ++ filename
+    = "file: " ++ fileName
   show (CflpGen1 fileName n m)
     = "file: " ++ fileName
     ++ ", n: " ++ show n
