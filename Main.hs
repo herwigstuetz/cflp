@@ -521,7 +521,11 @@ cflpInput opts = do
         Right cflp'' -> do
           if not $ isFeasible cflp''
             then error "CFLP not feasible"
-            else return [(CflpGenFile fileName, cflp'')]
+            else return [( CflpGen1
+                             fileName
+                             (length $ facilities cflp'')
+                             (length $ clients cflp'')
+                         , cflp'')]
     Nothing -> do
       case inputGenerator opts of
         Just generator -> do
