@@ -464,6 +464,8 @@ data CflpGeneratorOptions =
   | CflpGen5 Position Position Int Int Double (Double, Double) Double -- start end n m f_i u_i d_j
 
 instance Show CflpGeneratorOptions where
+  show (CflpGenFile fileName)
+    = "file: " ++ filename
   show (CflpGen1 fileName n m)
     = "file: " ++ fileName
     ++ ", n: " ++ show n
