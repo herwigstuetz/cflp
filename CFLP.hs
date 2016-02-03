@@ -456,7 +456,7 @@ cflpFileAvellaBoccia = do
   (many aBWhitespace)
   eof
 
-  let !cijs  = traceMsgId "cijs" $ splitPlaces [m,m ..] cs'
+  let cijs  = splitPlaces [m,m ..] cs'
   let cijs' = concat $ zipWith (\i ci -> zipWith (\j cij -> ((i, j), Distance i j cij 0.0)) [0..] ci) [0..] cijs
   let facilities = createFacilitiesFromList $ zip fs us
       clients    = createClientsFromList ds
