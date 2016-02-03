@@ -693,6 +693,7 @@ cflpOutput opts (genOpts, Pair exact approx) = do
     return ()
 
   when (statsFile opts) $ do
+    createDirectoryIfMissing True dirName
     case (exact, approx) of
      (Just (SolvedCflp exact exactObj exactTime), Just (SolvedCflp approx approxObj approxTime)) -> do
        let exactOpen = getOpenFacilityCount $ facilities exact
