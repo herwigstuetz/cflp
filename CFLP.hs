@@ -280,7 +280,7 @@ integerList = (integer `sepBy` (char ' ' <|> tab)) <* (many whitespace) <* newli
 
 double = fmap rd $ integer <++> decimal <++> exponent
     where rd       = read :: String -> Double
-          decimal  = option "" $ char '.' <:> number
+          decimal  = option "" $ char '.' <:> (option "0" number)
           exponent = option "" $ oneOf "eE" <:> integer
           integer  = plus <|> minus <|> number
 
