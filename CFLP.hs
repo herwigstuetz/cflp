@@ -462,6 +462,76 @@ cflpFileAvellaBoccia = do
       clients    = createClientsFromList ds
   return $ CFLP name facilities clients (array ((0,0),(n-1,m-1)) cijs')
 
+-- From http://people.brunel.ac.uk/~mastjjb/jeb/orlib/capinfo.html
+--
+-- The format of these data files is:
+-- number of potential warehouse locations (m), number of
+-- customers (n)
+-- for each potential warehouse location i (i=1,...,m):
+-- capacity, fixed cost
+-- for each customer j (j=1,...,n): demand, cost of allocating
+-- all of the demand of j to warehouse i (i=1,...,m)
+
+data ORClient = ORClient
+  { orClientDemand    :: Double
+  , orClientDistances :: [Double]
+  } deriving (Show, Eq)
+
+data ORFacility = ORFacility
+  { orFacilityOpeningCost :: Double
+  , orFacilityCapacity    :: Double
+  } deriving (Show, Eq)
+
+orLibClient n = do
+  many aBWhitespace
+  d   <- fmap fromIntegral integer
+  cis <- replicateM n $ (many1 aBWhitespace) *> double
+  return $ ORClient d cis
+
+orLibFacility = do
+  many aBWhitespace
+  ui <- double
+  many1 aBWhitespace
+  fi <- double
+  return $ ORFacility fi ui
+
+transpose :: [[a]] -> [[a]]
+transpose [] = []
+transpose ([] : as) = []
+transpose as = (map head as) : transpose (map tail as)
+
+toCflp :: String -> [ORFacility] -> [ORClient] -> CFLP
+toCflp name fs cs = CFLP name facilities clients (array ((0,0),(n-1,m-1)) cijs)
+  where
+    n = length fs
+    m = length cs
+    facilities = createFacilitiesFromList $ map (\(ORFacility f u) -> (f, u)) fs
+    clients    = createClientsFromList $ map (\(ORClient d _) -> d) cs
+    cijs       = concat
+                 $ transpose
+                 $ map (\(j, ORClient _ cij)
+                        -> map (\(i, c)
+                            -> ((i, j), Distance i j c 0.0))
+                           $ zip [0,1..] cij)
+                 $ zip [0..] cs
+
+cflpFileORLib :: (Stream s m Char) => ParsecT s u m CFLP
+cflpFileORLib = do
+  -- name of problem
+  let name = "cflp"
+
+  -- number of facilities/clients
+  many aBWhitespace
+  n <- fmap fromIntegral integer
+  many1 aBWhitespace
+  m <- fmap fromIntegral integer
+  many1 aBWhitespace
+
+  fs <- replicateM n $ orLibFacility
+  cs <- replicateM m $ orLibClient n
+
+  return $ toCflp name fs cs
+
 cflpFile :: Stream s m Char => ParsecT s u m CFLP
 cflpFile = cflpFileWithPositions
 

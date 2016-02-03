@@ -325,6 +325,7 @@ data CflpInputFileType
   = CflpInputFileWithDistances
   | CflpInputFileWithPositions
   | CflpInputFileAvellaBoccia
+  | CflpInputFileORLib
     deriving (Show, Eq)
 
 data CflpInputOptions = CflpInputOptions
@@ -369,6 +370,7 @@ fromString :: String -> CflpInputFileType
 fromString "withDistances" = CflpInputFileWithDistances
 fromString "withPositions" = CflpInputFileWithPositions
 fromString "AvellaBoccia"  = CflpInputFileAvellaBoccia
+fromString "ORLib"         = CflpInputFileORLib
 fromString _               = CflpInputFileWithPositions
 
 cflpOptions :: Parser CflpOptions
@@ -505,7 +507,8 @@ cflpFileParser ::
   -> ParsecT s u m CFLP
 cflpFileParser CflpInputFileWithPositions = cflpFileWithPositions
 cflpFileParser CflpInputFileWithDistances = cflpFileWithDistances
-cflpFileParser CflpInputFileAvellaBoccia = cflpFileAvellaBoccia
+cflpFileParser CflpInputFileAvellaBoccia  = cflpFileAvellaBoccia
+cflpFileParser CflpInputFileORLib         = cflpFileORLib
 
 cflpInput :: CflpInputOptions -> IO [(CflpGeneratorOptions, CFLP)]
 cflpInput opts = do
@@ -514,6 +517,7 @@ cflpInput opts = do
       cflp <- readFile fileName
       let fileType = fromString $ fromMaybe "" $ inputFileType opts
       let cflp' = parse (cflpFileParser fileType) (dropExtension fileName) cflp
+      print cflp'
       case cflp' of
         Left msg -> do
           print msg
