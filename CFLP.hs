@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -13,6 +14,7 @@ import qualified Control.Monad.State as State
 import           Data.Array
 import           Data.Function
 import           Data.List                     (find, group, sort, sortBy, (\\), zipWith5, zipWith4)
+import           Data.List.Split (splitPlaces)
 import           Data.Tuple
 import           Text.Printf
 
@@ -274,7 +276,7 @@ integer = rd <$> (pos <|> neg <|> number)
         number = many1 digit
 
 integerList :: (Stream s m Char) => ParsecT s u m [Integer]
-integerList = (integer `sepBy` char ' ') <* newline
+integerList = (integer `sepBy` (char ' ' <|> tab)) <* (many whitespace) <* newline
 
 double = fmap rd $ integer <++> decimal <++> exponent
     where rd       = read :: String -> Double
@@ -282,8 +284,15 @@ double = fmap rd $ integer <++> decimal <++> exponent
           exponent = option "" $ oneOf "eE" <:> integer
           integer  = plus <|> minus <|> number
 
-doubleList :: (Stream s m Char) => ParsecT s u m [Double]
-doubleList = (double `sepBy` char ' ') <* newline
+doubleList :: Stream s m Char => ParsecT s u m [Double]
+doubleList = (double `sepBy` (char ' ' <|> tab)) <* (many whitespace) <* newline
+
+whitespace = char ' ' <|> tab
+
+eol = Text.ParserCombinators.Parsec.try (string "\r\n")
+  <|> Text.ParserCombinators.Parsec.try (string "\n\r")
+  <|> string "\n"
+  <|> string "\r"
 
 cflpFileWithPositions :: (Stream s m Char) => ParsecT s u m CFLP
 cflpFileWithPositions = do
@@ -415,6 +424,40 @@ cflpFileWithDistances = do
 
   let cijs' = concat $ zipWith (\i ci -> zipWith (\j cij -> ((i, j), Distance i j cij 0.0)) [0..] ci) [0..] cijs
 
+  let facilities = createFacilitiesFromList $ zip fs us
+      clients    = createClientsFromList ds
+  return $ CFLP name facilities clients (array ((0,0),(n-1,m-1)) cijs')
+
+aBWhitespace = oneOf "\n\r\t "
+
+cflpFileAvellaBoccia :: (Stream s m Char) => ParsecT s u m CFLP
+cflpFileAvellaBoccia = do
+  -- name of problem
+  let name = "cflp"
+
+  -- number of facilities/clients
+  n <- fmap fromIntegral integer
+  many1 aBWhitespace
+  m <- fmap fromIntegral integer
+  many1 aBWhitespace
+
+  let cIds = [0,1 ..]
+  ds' <- replicateM m (integer <* (many1 aBWhitespace))
+
+  let fIds = [0,1 ..]
+  us' <- replicateM n (integer <* (many1 aBWhitespace))
+  fs  <- replicateM n (double <* (many1 aBWhitespace))
+
+  let ds = map fromIntegral ds'
+      us = map fromIntegral us'
+
+  -- distances
+  cs' <- double <:> replicateM (n*m-1) (many1 aBWhitespace *> double)
+  (many aBWhitespace)
+  eof
+
+  let !cijs  = traceMsgId "cijs" $ splitPlaces [m,m ..] cs'
+  let cijs' = concat $ zipWith (\i ci -> zipWith (\j cij -> ((i, j), Distance i j cij 0.0)) [0..] ci) [0..] cijs
   let facilities = createFacilitiesFromList $ zip fs us
       clients    = createClientsFromList ds
   return $ CFLP name facilities clients (array ((0,0),(n-1,m-1)) cijs')

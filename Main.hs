@@ -42,8 +42,6 @@ import           System.Log.Logger
 
 import           System.Random
 
-import           Debug.Trace
-
 import           CPLEX
 import           CPLEX.Param
 
@@ -326,6 +324,7 @@ main' = do
 data CflpInputFileType
   = CflpInputFileWithDistances
   | CflpInputFileWithPositions
+  | CflpInputFileAvellaBoccia
     deriving (Show, Eq)
 
 data CflpInputOptions = CflpInputOptions
@@ -369,6 +368,7 @@ data CflpOptions = CflpOptions
 fromString :: String -> CflpInputFileType
 fromString "withDistances" = CflpInputFileWithDistances
 fromString "withPositions" = CflpInputFileWithPositions
+fromString "AvellaBoccia"  = CflpInputFileAvellaBoccia
 fromString _               = CflpInputFileWithPositions
 
 cflpOptions :: Parser CflpOptions
@@ -503,6 +503,7 @@ cflpFileParser ::
   -> ParsecT s u m CFLP
 cflpFileParser CflpInputFileWithPositions = cflpFileWithPositions
 cflpFileParser CflpInputFileWithDistances = cflpFileWithDistances
+cflpFileParser CflpInputFileAvellaBoccia = cflpFileAvellaBoccia
 
 cflpInput :: CflpInputOptions -> IO [(CflpGeneratorOptions, CFLP)]
 cflpInput opts = do
@@ -1027,10 +1028,6 @@ c2 cflp clusters = updateCluster facilityAssignment clusters
         clusteredFacilities = concatMap clusterElements clusters
         remainingFacilities = openFacilities \\ clusteredFacilities
         facilityAssignment = zip remainingFacilities $ map (nearestClient cflp) remainingFacilities
-
-
-traceMsgId :: Show a => String -> a -> a
-traceMsgId msg val = val -- trace (msg ++ show val) val
 
 
 -- Reducing to single node
