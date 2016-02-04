@@ -486,7 +486,7 @@ orLibClient n = do
   many aBWhitespace
   d   <- fmap fromIntegral integer
   cis <- replicateM n $ (many1 aBWhitespace) *> double
-  return $ ORClient d cis
+  return $ ORClient d $ map (\c -> c/d) cis
 
 orLibFacility = do
   many aBWhitespace
