@@ -278,7 +278,7 @@ integer = rd <$> (pos <|> neg <|> number)
 integerList :: (Stream s m Char) => ParsecT s u m [Integer]
 integerList = (integer `sepBy` (char ' ' <|> tab)) <* (many whitespace) <* newline
 
-double = fmap rd $ integer <++> decimal <++> exponent
+double = fmap rd $ (option "0" integer) <++> decimal <++> exponent
     where rd       = read :: String -> Double
           decimal  = option ".0" $ char '.' <:> (option "0" number)
           exponent = option "" $ oneOf "eE" <:> integer
